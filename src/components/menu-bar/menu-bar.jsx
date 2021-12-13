@@ -489,7 +489,7 @@ class MenuBar extends React.Component {
                         >
                             <div className={classNames(styles.editMenu)}>
                                 <FormattedMessage
-                                    defaultMessage="Edit"
+                                    defaultMessage="Haha"
                                     description="Text for edit dropdown menu"
                                     id="gui.menuBar.edit"
                                 />
