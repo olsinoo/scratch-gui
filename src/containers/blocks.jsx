@@ -45,9 +45,15 @@ const DroppableBlocks = DropAreaHOC([
     DragConstants.BACKPACK_CODE
 ])(BlocksComponent);
 
+
 class Blocks extends React.Component {
     constructor (props) {
         super(props);
+        // eslint-disable-next-line no-console
+        console.log('Blocks constructor - props - something?');
+        // eslint-disable-next-line no-console
+        console.log(props);
+        this.VirtualMachine = props.vm;
         this.ScratchBlocks = VMScratchBlocks(props.vm);
         bindAll(this, [
             'attachVM',
@@ -72,6 +78,7 @@ class Blocks extends React.Component {
             'onVisualReport',
             'onWorkspaceUpdate',
             'onWorkspaceMetricsChange',
+            'getSaveToComputerHandler',
             'setBlocks',
             'setLocale'
         ]);
@@ -86,6 +93,8 @@ class Blocks extends React.Component {
         this.toolboxUpdateQueue = [];
     }
     componentDidMount () {
+        // eslint-disable-next-line no-console
+        console.log('component mount');
         this.ScratchBlocks.FieldColourSlider.activateEyedropper_ = this.props.onActivateColorPicker;
         this.ScratchBlocks.Procedures.externalProcedureDefCallback = this.props.onActivateCustomProcedures;
         this.ScratchBlocks.ScratchMsgs.setLocale(this.props.locale);
@@ -137,6 +146,46 @@ class Blocks extends React.Component {
         }
     }
     shouldComponentUpdate (nextProps, nextState) {
+        // eslint-disable-next-line no-console
+        console.log('component should update');
+        // eslint-disable-next-line no-console
+        console.log('PRINTING THE BLOCKS CODE');
+        const projectJson = this.props.vm.toJSON();
+        // eslint-disable-next-line no-console
+        console.log(projectJson);
+        const obj = JSON.parse(projectJson);
+        // eslint-disable-next-line no-console
+        console.log('OBJECTS:');
+        for (let i = 0; i < obj.targets.length; i++) {
+            if (!obj.targets[i].isStage) {
+                // eslint-disable-next-line no-console
+                console.log(obj.targets[i].name);
+                // eslint-disable-next-line no-console
+                console.log('# of blocks');
+                // console.log(obj.targets[i].blocks);
+                // eslint-disable-next-line no-console
+                console.log(typeof obj.targets[i].blocks);
+                // eslint-disable-next-line no-console
+                console.log(Object.entries(obj.targets[i].blocks));
+                // for (let j = 0; j < obj.targets[i].blocks.length; j++) {
+                //     // eslint-disable-next-line no-console
+                //     console.log('Block:');
+                //     // eslint-disable-next-line no-console
+                //     console.log(obj.targets[i].blocks[j].opcode);
+                // }
+                // eslint-disable-next-line no-console
+                console.log('Blocks:');
+                for (const [key, value] of Object.entries(obj.targets[i].blocks)) {
+                    // eslint-disable-next-line no-console
+                    console.log(`${key}: name ${value.opcode} parent ${value.parent}, next ${value.next}`);
+                    // console.log(obj.targets[i].blocks[j].opcode);
+                }
+            }
+        }
+        // // eslint-disable-next-line no-console
+        // console.log(obj.targets[1]);
+        // eslint-disable-next-line no-console
+        console.log('END OF PRINTING');
         return (
             this.state.prompt !== nextState.prompt ||
             this.props.isVisible !== nextProps.isVisible ||
@@ -149,6 +198,8 @@ class Blocks extends React.Component {
         );
     }
     componentDidUpdate (prevProps) {
+        // eslint-disable-next-line no-console
+        console.log('component update');
         // If any modals are open, call hideChaff to close z-indexed field editors
         if (this.props.anyModalVisible && !prevProps.anyModalVisible) {
             this.ScratchBlocks.hideChaff();
@@ -160,7 +211,8 @@ class Blocks extends React.Component {
         if (this.props.isVisible && this.props.toolboxXML !== this._renderedToolboxXML) {
             this.requestToolboxUpdate();
         }
-
+        // eslint-disable-next-line no-console
+        console.log('1here');
         if (this.props.isVisible === prevProps.isVisible) {
             if (this.props.stageSize !== prevProps.stageSize) {
                 // force workspace to redraw for the new stage size
@@ -168,6 +220,14 @@ class Blocks extends React.Component {
             }
             return;
         }
+        // eslint-disable-next-line no-console
+        console.log('2here');
+        const projectJson = this.VirtualMachine.toJSON();
+        // eslint-disable-next-line no-console
+        console.log(projectJson);
+
+        // eslint-disable-next-line no-console
+        console.log('3here');
         // @todo hack to resize blockly manually in case resize happened while hidden
         // @todo hack to reload the workspace due to gui bug #413
         if (this.props.isVisible) { // Scripts tab
@@ -185,19 +245,27 @@ class Blocks extends React.Component {
         } else {
             this.workspace.setVisible(false);
         }
+        // eslint-disable-next-line no-console
+        console.log('4here');
     }
     componentWillUnmount () {
+        // eslint-disable-next-line no-console
+        console.log('component unmount');
         this.detachVM();
         this.workspace.dispose();
         clearTimeout(this.toolboxUpdateTimeout);
     }
     requestToolboxUpdate () {
+        // eslint-disable-next-line no-console
+        console.log('request toolbox update');
         clearTimeout(this.toolboxUpdateTimeout);
         this.toolboxUpdateTimeout = setTimeout(() => {
             this.updateToolbox();
         }, 0);
     }
     setLocale () {
+        // eslint-disable-next-line no-console
+        console.log('set locale');
         this.ScratchBlocks.ScratchMsgs.setLocale(this.props.locale);
         this.props.vm.setLocale(this.props.locale, this.props.messages)
             .then(() => {
@@ -211,6 +279,8 @@ class Blocks extends React.Component {
     }
 
     updateToolbox () {
+        // eslint-disable-next-line no-console
+        console.log('update toolbox');
         this.toolboxUpdateTimeout = false;
 
         const categoryId = this.workspace.toolbox_.getSelectedCategoryId();
@@ -237,6 +307,8 @@ class Blocks extends React.Component {
     }
 
     withToolboxUpdates (fn) {
+        // eslint-disable-next-line no-console
+        console.log('toolbox queued update');
         // if there is a queued toolbox update, we need to wait
         if (this.toolboxUpdateTimeout) {
             this.toolboxUpdateQueue.push(fn);
@@ -246,6 +318,8 @@ class Blocks extends React.Component {
     }
 
     attachVM () {
+        // eslint-disable-next-line no-console
+        console.log('attach vm');
         this.workspace.addChangeListener(this.props.vm.blockListener);
         this.flyoutWorkspace = this.workspace
             .getFlyout()
@@ -263,6 +337,7 @@ class Blocks extends React.Component {
         this.props.vm.addListener('BLOCKSINFO_UPDATE', this.handleBlocksInfoUpdate);
         this.props.vm.addListener('PERIPHERAL_CONNECTED', this.handleStatusButtonUpdate);
         this.props.vm.addListener('PERIPHERAL_DISCONNECTED', this.handleStatusButtonUpdate);
+        this.props.vm.addListener('BLOCK_DRAG_UPDATE', this.onBlockChange);
     }
     detachVM () {
         this.props.vm.removeListener('SCRIPT_GLOW_ON', this.onScriptGlowOn);
@@ -276,6 +351,7 @@ class Blocks extends React.Component {
         this.props.vm.removeListener('BLOCKSINFO_UPDATE', this.handleBlocksInfoUpdate);
         this.props.vm.removeListener('PERIPHERAL_CONNECTED', this.handleStatusButtonUpdate);
         this.props.vm.removeListener('PERIPHERAL_DISCONNECTED', this.handleStatusButtonUpdate);
+        this.props.vm.removeListener('BLOCK_DRAG_UPDATE', this.onBlockChange);
     }
 
     updateToolboxBlockValue (id, value) {
@@ -314,6 +390,86 @@ class Blocks extends React.Component {
             }, 0);
         }
     }
+
+    // onBlockChange() {
+    //     // eslint-disable-next-line no-console,no-invalid-this
+    //     console.log(this.ScratchBlocks.Xml.workspaceToDom(this.workspace))
+    // }
+
+
+    // <SB3Downloader>{(className, downloadProjectCallback) => (
+    //     // eslint-disable-next-line no-invalid-this
+    //     this.getSaveToComputerHandler(downloadProjectCallback)
+    // )}</SB3Downloader>;
+
+
+    // =============================================================
+    getSaveToComputerHandler (downloadProjectCallback) {
+        downloadProjectCallback();
+        // return () => {
+        //     // this.props.onRequestCloseFile();
+        //     downloadProjectCallback();
+        //     if (this.props.onProjectTelemetryEvent) {
+        //         const metadata = collectMetadata(this.props.vm, this.props.projectTitle, this.props.locale);
+        //         this.props.onProjectTelemetryEvent('projectDidSave', metadata);
+        //     }
+        // };
+    }
+    onBlockChange () {
+        // eslint-disable-next-line no-console
+        console.log('Aloha');
+        // eslint-disable-next-line no-console
+        // console.log(ScratchBlocks.Xml.workspaceToDom(this.workspace));
+        // eslint-disable-next-line no-console
+        console.log('22Aloha22');
+
+        // ==========================
+        // const projectJson = this.toJSON();
+        //
+        // // TODO want to eventually move zip creation out of here, and perhaps
+        // // into scratch-storage
+        // const zip = new JSZip();
+        //
+        // // Put everything in a zip file
+        // zip.file('project.json', projectJson);
+        // this._addFileDescsToZip(soundDescs.concat(costumeDescs), zip);
+        //
+        // return zip.generateAsync({
+        //     type: 'blob',
+        //     mimeType: 'application/x.scratch.sb3',
+        //     compression: 'DEFLATE',
+        //     compressionOptions: {
+        //         level: 6 // Tradeoff between best speed (1) and best compression (9)
+        //     }
+        // });
+        // ==========================
+
+        // eslint-disable-next-line no-console
+        console.log(this.VirtualMachine);
+        if (typeof this.VirtualMachine !== 'undefined') {
+            const projectJson = this.VirtualMachine.toJSON();
+            // this.props.vm.toJSON();
+            // this.state.scratchGui.vm.toJSON();
+            // const zip = new JSZip();
+            // zip.file('project.json', projectJson);
+
+            // eslint-disable-next-line no-console
+            console.log(projectJson);
+        }
+
+        // <SB3Downloader>{(className, downloadProjectCallback) => (
+        //     this.getSaveToComputerHandler(downloadProjectCallback)
+        // )}</SB3Downloader>
+        // SB3Downloader.downloadProject();
+        // <SB3Downloader>{(className, downloadProjectCallback) => (
+        //     // eslint-disable-next-line no-invalid-this
+        //     this.getSaveToComputerHandler(downloadProjectCallback)
+        // )}</SB3Downloader>;
+        // eslint-disable-next-line no-console
+        console.log('33Aloha33');
+    }
+    // =============================================================
+
     onScriptGlowOn (data) {
         this.workspace.glowStack(data.id, true);
     }
@@ -586,6 +742,7 @@ Blocks.propTypes = {
     onActivateCustomProcedures: PropTypes.func,
     onOpenConnectionModal: PropTypes.func,
     onOpenSoundRecorder: PropTypes.func,
+    onProjectTelemetryEvent: PropTypes.func,
     onRequestCloseCustomProcedures: PropTypes.func,
     onRequestCloseExtensionLibrary: PropTypes.func,
     options: PropTypes.shape({
@@ -610,6 +767,7 @@ Blocks.propTypes = {
         comments: PropTypes.bool,
         collapse: PropTypes.bool
     }),
+    projectTitle: PropTypes.string,
     stageSize: PropTypes.oneOf(Object.keys(STAGE_DISPLAY_SIZES)).isRequired,
     toolboxXML: PropTypes.string,
     updateMetrics: PropTypes.func,
@@ -664,7 +822,8 @@ const mapStateToProps = state => ({
     messages: state.locales.messages,
     toolboxXML: state.scratchGui.toolbox.toolboxXML,
     customProceduresVisible: state.scratchGui.customProcedures.active,
-    workspaceMetrics: state.scratchGui.workspaceMetrics
+    workspaceMetrics: state.scratchGui.workspaceMetrics,
+    projectTitle: state.scratchGui.projectTitle
 });
 
 const mapDispatchToProps = dispatch => ({
