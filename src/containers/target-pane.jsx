@@ -78,6 +78,8 @@ class TargetPane extends React.Component {
         this.props.vm.postSpriteInfo({y});
     }
     handleDeleteSprite (id) {
+        console.log('delete sprite deleting with ID');
+        console.log(id);
         const restoreSprite = this.props.vm.deleteSprite(id);
         const restoreFun = () => restoreSprite().then(this.handleActivateBlocksTab);
 
@@ -106,11 +108,29 @@ class TargetPane extends React.Component {
         }
     }
     handleSurpriseSpriteClick () {
+        // eslint-disable-next-line no-console,max-len
+        console.log('#################################################################################################################################################SUrprise sprite clicked');
+        // eslint-disable-next-line no-console,max-len
+        console.log('#################################################################################################################################################SUrprise sprite clicked');
+        // eslint-disable-next-line no-console,max-len
+        console.log('#################################################################################################################################################SUrprise sprite clicked');
+        // eslint-disable-next-line no-console,max-len
+        console.log('#################################################################################################################################################SUrprise sprite clicked');
+        console.log('#################################################################################################################################################SUrprise sprite clicked');
+
+        // eslint-disable-next-line no-console
+        console.log(spriteLibraryContent);
         const surpriseSprites = spriteLibraryContent.filter(sprite =>
             (sprite.tags.indexOf('letters') === -1) && (sprite.tags.indexOf('numbers') === -1)
         );
+        console.log(surpriseSprites);
         const item = surpriseSprites[Math.floor(Math.random() * surpriseSprites.length)];
+        console.log(JSON.stringify(item));
         randomizeSpritePosition(item);
+        // eslint-disable-next-line no-console
+        console.log(JSON.stringify(item));
+        console.log('-------------------- lolololo');
+        console.log(surpriseSprites[19]);
         this.props.vm.addSprite(JSON.stringify(item))
             .then(this.handleActivateBlocksTab);
     }

@@ -67,7 +67,7 @@ class CustomProcedures extends React.Component {
                 // Calculate a new left postion based on new width
                 // Convert current x position into LTR (mirror) x position (uses original offset)
                 // Use the difference between ltrX and mirrorX as the amount to move
-                const ltrX = ((metrics.viewWidth / 2) - (this.mutationRoot.width / 2) + 25);
+                const ltrX = ((metrics.viewWidth / 2) - (this.mutationRoot.width / 2));
                 const mirrorX = x - ((x - this.state.rtlOffset) * 2);
                 if (mirrorX === ltrX) {
                     return;

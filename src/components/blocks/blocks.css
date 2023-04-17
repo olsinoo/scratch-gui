@@ -90,7 +90,7 @@
     make the change here instead of in scratch-blocks.
 */
 .blocks :global(.scratchCategoryMenuItemLabel) {
-    font-size: 0.65rem;
+    font-size: 0.65rem;     /* FONT SIZE - categories */
 }
 
 .blocks :global(.blocklyMinimalBody) {

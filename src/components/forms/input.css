@@ -6,7 +6,7 @@
     padding: 0 0.75rem;
 
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-    font-size: 0.625rem;
+    font-size: 0.625rem; /* FONT SIZE - bottom right -> spriteList, canvasSize */
     font-weight: bold;
     color: $text-primary;
 

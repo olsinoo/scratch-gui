@@ -70,7 +70,7 @@ $sides: 20rem;
     background-color: $motion-primary;
 
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-    font-size: 1rem;
+    font-size: 1rem;    /* FONT SIZE - nothing? */
     font-weight: normal;
 }
 

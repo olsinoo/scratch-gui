@@ -22,6 +22,7 @@ import defineDynamicBlock from '../lib/define-dynamic-block';
 import {connect} from 'react-redux';
 import {updateToolbox} from '../reducers/toolbox';
 import {activateColorPicker} from '../reducers/color-picker';
+// import {}
 import {closeExtensionLibrary, openSoundRecorder, openConnectionModal} from '../reducers/modals';
 import {activateCustomProcedures, deactivateCustomProcedures} from '../reducers/custom-procedures';
 import {setConnectionModalExtensionId} from '../reducers/connection-modal';
@@ -31,6 +32,8 @@ import {
     activateTab,
     SOUNDS_TAB_INDEX
 } from '../reducers/editor-tab';
+// import translatedCode from '../index';
+import globalVariable from '../index.js';
 
 const addFunctionListener = (object, property, callback) => {
     const oldFn = object[property];
@@ -45,14 +48,273 @@ const DroppableBlocks = DropAreaHOC([
     DragConstants.BACKPACK_CODE
 ])(BlocksComponent);
 
+let rootBlocks = [];
+let allBlocks = [];
+
+class BlockNode {
+    constructor (id, name) {
+        this.id = id;
+        this.opcode = name;
+        this.value = null;
+        this.childNode = null;
+        this.parentNode = null;
+        this.childID = '';
+        this.parentID = '';
+        this.conditionID = null;
+        this.body = [];
+        //this.body2 = [];
+        this.isRoot = false;
+    }
+    toString () {
+        return `${this.id}\n---> ${this.opcode}\n---> child: ${this.childNode === null ? this.childID : this.childNode.id}\n---> parent: ${this.parentNode === null ? this.parentID : this.parentNode.id}`;
+    }
+}
+
+export let trees = null;
+
+// ///////////////////////////// NEW ROOT IS ONLY WHEN BLOCK NAME STARTS WITH "event_when"
+// eslint-disable-next-line no-unused-vars
+class BlockTrees {
+    constructor () {
+        this.roots = []; // [rootNode]
+        this.size = 0;
+    }
+
+    getRoots () {
+        return this.roots;
+    }
+
+    findNodeByTypeInAllBlocks (opcode) {
+        const foundNodes = allBlocks.filter(value => value.opcode === opcode);
+        return foundNodes;
+    }
+
+    findNodeByIDInAllBlocks (id) {
+        const foundNodes = allBlocks.filter(value => value.id === id);
+        if (foundNodes.length === 0) return null;
+        return foundNodes[0];
+    }
+
+    findNode (nodeID) {
+        // find node
+        for (const rootNode in this.roots) {
+            let currentNode = rootNode;
+            let parent = null;
+            while (currentNode) {
+                if (currentNode.id === nodeID) {
+                    return currentNode;
+                }
+                parent = currentNode;
+                currentNode = currentNode.childNode;
+            }
+        }
+    }
+
+    addNode (node) {
+        // eslint-disable-next-line no-console
+        console.log('ADDING node to tree: ', node.id);
+        const nodes = this.roots.slice();
+        if (nodes.length === 0 || node.isRoot) {
+            node.childNode = this.findNodeByIDInAllBlocks(node.childID);
+            this.roots.push(node);
+            this.size += 1;
+            return;
+        }
+        // for (let root in this.roots) {
+        //     if (root.id === node.id) {
+        //         // const foundNodes = allBlocks.filter(value => value.opcode === opcode);
+        //         this.roots = this.roots.filter(rootNode => rootNode.id !== node.id);
+        //     }
+        // }
+
+        this.updateNodeFamily(node);
+
+        // let parent;
+        // if (node.parentNode === null) {
+        //     parent = this.findNode(node.parentID);
+        // } else {
+        //     parent = node.parentNode;
+        // }
+        if (node.parentNode === null) {
+            this.roots.push(node);
+            this.size += 1;
+            this.checkRoots();
+            return;
+        }
+        const parent = node.parentNode;
+        // this.updateNodeFamily(parent);
+        // eslint-disable-next-line no-console
+        console.log('found parent: ', parent.id, parent.opcode);
+
+        if (parent.childID === node.id) {
+            // ak parent nema child node, tak sa pripne
+            parent.childNode = node;
+        } else {
+            // if (parent.childID === '') {
+            //     // nodov parent nema dieta --> body?? alebo podmienka
+            // } else {
+            //     // nodov parent ma dieta --> body alebo podmienka
+            // }
+            //
+            // parent.body.push(node); // this.updateNodeFamily(node)
+
+            // inak, bud ziadneho childa nema, alebo ma nepriameho v tele
+            // ak parent ma childNode a je rozny od node
+
+            // TODO: POTREBNE ROZDELIT NA KLASICKY BLOK A TEN S VYBEROM Z MOZNOSTI (ako GoTo)
+            // DONE: parent nema dieta, tak to je _menu block a treba mu nabindovat hodnotu
+            // parent nema dieta, ale moze mat v tele nieco
+
+            const oldChild = parent.childNode;
+            // TODO -------------------------
+            // TODO oldchild == Null
+            // Ak vkladam do BODY/BODY2, tak nema childnode
+            if (oldChild === null || oldChild.id === node.id) return;
+            if (node.childNode === null) {
+                node.childNode = oldChild;
+                node.childID = oldChild.id;
+                parent.childNode = node;
+                parent.childID = node.id; // TODO toto tu asi nebude kvoli next-body/body-next kolizii
+            } else {
+                // najdem si posledne dieta z vkladanych blokov a k nemu pripojim povodneho childa
+                let someNode = node;
+                while (someNode.childNode !== null) {
+                    someNode = someNode.childNode;
+                }
+                someNode.childNode = oldChild;
+                someNode.childID = oldChild.id;
+                parent.childNode = node;
+                parent.childID = node.id;
+            }
+        }
+
+        // if (parent.childNode === null) {
+        //     // ak parent nema child node, tak sa pripne
+        //     parent.childNode = node;
+        //     parent.childID = node.id;
+        // } else {
+        //     // ak parent ma childNode a je rozny od node
+        //
+        //     // TODO: POTREBNE ROZDELIT NA KLASICKY BLOK A TEN S VYBEROM Z MOZNOSTI (ako GoTo)
+        //     // DONE: parent nema dieta, tak to je _menu block a treba mu nabindovat hodnotu
+        //     // parent nema dieta, ale moze mat v tele nieco
+        //
+        //     const oldChild = parent.childNode;
+        //     if (oldChild.id === node.id) return;
+        //     if (node.childNode === null) {
+        //         node.childNode = oldChild;
+        //         node.childID = oldChild.id;
+        //         parent.childNode = node;
+        //         parent.childID = node.id;
+        //     } else {
+        //         // najdem si posledne dieta z vkladanych blokov a k nemu pripojim povodneho childa
+        //         let someNode = node;
+        //         while (someNode.childNode !== null) {
+        //             someNode = someNode.childNode;
+        //         }
+        //         someNode.childNode = oldChild;
+        //         someNode.childID = oldChild.id;
+        //         parent.childNode = node;
+        //         parent.childID = node.id;
+        //     }
+        // }
+        this.size += 1;
+        this.checkRoots();
+    }
+
+    updateNodeFamily (node) {
+        // eslint-disable-next-line no-console
+        console.log('UPDATING node in tree: ', node.id);
+
+        if (node.childID !== '' && node.childNode === null) {
+            node.childNode = this.findNodeByIDInAllBlocks(node.childID);
+        }
+        if (node.parentID !== '' && node.parentNode === null) {
+            node.parentNode = this.findNodeByIDInAllBlocks(node.parentID);
+        }
+        if (node.conditionID !== null) {
+            const foundNode = this.findNodeByIDInAllBlocks(node.conditionID);
+            if (foundNode !== null) {
+                node.value = `${foundNode.opcode.substring(foundNode.opcode.indexOf('_') + 1)}(${(foundNode.value === null) ? '' : foundNode.value})`;
+            }
+        }
+        if (node.parentID !== '' &&
+            node.parentNode !== null &&
+            node.parentNode.conditionID !== node.id &&
+            (node.parentNode.childID === '' ||
+            node.parentNode.childID !== node.id)) {
+            // console.log(`${node.id} =?= ${node.conditionID}`);
+            console.log(`Add ${node.id} to body of ${node.parentNode.id}`);
+            //node.parentNode.body.forEach(nnode => console.log(`.      ${nnode.id}`));
+            // TODO: trochu zefektivnit toto - mohlo by to spravit problem pri mrte velkych kodoch
+            if (node.parentNode.body.some(nnode => nnode.id === node.id)) return;
+            node.parentNode.body.push(node);
+        }
+    }
+
+    updateAll () {
+
+        allBlocks.forEach(node => {
+            // console.log(`UPDATING BLOCK: ${node.id} ${node.opcode}` );
+            this.updateNodeFamily(node);
+        });
+    }
+
+    checkRoots () {
+        const visited = new Set();
+        this.roots = this.roots.filter(rootNode => (rootNode.isRoot ? (visited.has(rootNode.id) ? false : visited.add(rootNode.id)) : false));
+    }
+
+    // addNode (node) {
+    //     let nodes = this.roots.slice();
+    //     while (nodes.length > 0) {
+    //         let currentNode = nodes.shift();
+    //         if (currentNode.id === node.parentID) {
+    //             // kedze v JSON je info o parentoch a childoch, tak vzdy viem, ci je nieco pripojene k tomu bloku (ci uz je to len ID alebo uz mam cely BlockNode)
+    //             if (currentNode.childNode === null) {
+    //                 // ak nema ziadne chidlren (alebo next), tak to bude body (ako ma napr. if) alebo vo fields/inputs
+    //                 currentNode.body.push(node);
+    //             } else {
+    //                 // ak tento block ma nejaky nasledujuci, tak by sa mal premazat tym novym a ten novy proste odpojit
+    //                 // pokial to vsak je len ID a nezhoduje sa s ID pridavaneho Node, tak to bude field/input
+    //                 if (currentNode.)
+    //             }
+    //         }
+    //     }
+    // }
+
+    updateNode (node) {
+
+    }
+    // addChild (type, value) {
+    //     const newNode = new BlockNode(type, value);
+    //     if (this.root === null) {
+    //         this.root = newNode;
+    //     } else {
+    //         // eslint-disable-next-line no-console
+    //         // treba najst potrebny Node, ktory je rodicom vkladaneho
+    //         // je potrebne ziskavat kod z "inputs", kde sa
+    //     }
+    //     this.size += 1;
+    //     return newNode;
+    // }
+
+    // eslint-disable-next-line no-unused-vars
+    removeNode (node) {
+
+    }
+}
+
+export let codeFromBlocks = {};
 
 class Blocks extends React.Component {
     constructor (props) {
+        console.log('constructor');
         super(props);
         // eslint-disable-next-line no-console
-        console.log('Blocks constructor - props - something?');
+        // console.log('Blocks constructor - props - something?');
         // eslint-disable-next-line no-console
-        console.log(props);
+        // console.log(props);
         this.VirtualMachine = props.vm;
         this.ScratchBlocks = VMScratchBlocks(props.vm);
         bindAll(this, [
@@ -72,6 +334,7 @@ class Blocks extends React.Component {
             'onScriptGlowOff',
             'onBlockGlowOn',
             'onBlockGlowOff',
+            'onBlockUpdate',
             'handleExtensionAdded',
             'handleBlocksInfoUpdate',
             'onTargetsUpdate',
@@ -94,7 +357,10 @@ class Blocks extends React.Component {
     }
     componentDidMount () {
         // eslint-disable-next-line no-console
-        console.log('component mount');
+        console.log('component did mount');
+        rootBlocks = [];
+        trees = null;
+        allBlocks = [];
         this.ScratchBlocks.FieldColourSlider.activateEyedropper_ = this.props.onActivateColorPicker;
         this.ScratchBlocks.Procedures.externalProcedureDefCallback = this.props.onActivateCustomProcedures;
         this.ScratchBlocks.ScratchMsgs.setLocale(this.props.locale);
@@ -145,41 +411,278 @@ class Blocks extends React.Component {
             this.setLocale();
         }
     }
+
+    // saveBlocksToJson() {
+    //
+    // }
+
     shouldComponentUpdate (nextProps, nextState) {
         // eslint-disable-next-line no-console
         console.log('component should update');
-        // eslint-disable-next-line no-console
-        console.log('PRINTING THE BLOCKS CODE');
+
+        // TODO IMPORTANT PRINT
+        // console.log('PRINTING THE BLOCKS CODE');
         const projectJson = this.props.vm.toJSON();
-        // eslint-disable-next-line no-console
-        console.log(projectJson);
+        // console.log(projectJson);
         const obj = JSON.parse(projectJson);
+
         // eslint-disable-next-line no-console
-        console.log('OBJECTS:');
+        // console.log('OBJECTS:');
         for (let i = 0; i < obj.targets.length; i++) {
+            // AND IS NOT A SPRITE / or not??
             if (!obj.targets[i].isStage) {
                 // eslint-disable-next-line no-console
-                console.log(obj.targets[i].name);
+                // console.log(obj.targets[i].name);
                 // eslint-disable-next-line no-console
-                console.log('# of blocks');
+                // console.log('# of blocks');
                 // console.log(obj.targets[i].blocks);
                 // eslint-disable-next-line no-console
-                console.log(typeof obj.targets[i].blocks);
+                // console.log(typeof obj.targets[i].blocks);
                 // eslint-disable-next-line no-console
-                console.log(Object.entries(obj.targets[i].blocks));
+                // console.log(`Blocks: ${obj.targets[i].blocks.length}`);
+                // eslint-disable-next-line no-console
+                // console.log(Object.entries(obj.targets[i].blocks));
                 // for (let j = 0; j < obj.targets[i].blocks.length; j++) {
                 //     // eslint-disable-next-line no-console
                 //     console.log('Block:');
                 //     // eslint-disable-next-line no-console
                 //     console.log(obj.targets[i].blocks[j].opcode);
                 // }
+                allBlocks = [];
                 // eslint-disable-next-line no-console
-                console.log('Blocks:');
+                console.log(`BLOCKS from ${obj.targets[i].name}`);
+                // eslint-disable-next-line no-console
+                console.log(Object.entries(obj.targets[i].blocks));
+                console.log('-----------------------------------------------------------');
+                codeFromBlocks = {};
+
+                if (trees === null) {
+                    // eslint-disable-next-line no-console
+                    console.log('Add new tree');
+                    trees = new BlockTrees();
+                }
+
+                trees.roots = [];
+
                 for (const [key, value] of Object.entries(obj.targets[i].blocks)) {
                     // eslint-disable-next-line no-console
-                    console.log(`${key}: name ${value.opcode} parent ${value.parent}, next ${value.next}`);
-                    // console.log(obj.targets[i].blocks[j].opcode);
+                    // console.log(`${value.opcode} ---> ${key}           root: ${value.topLevel}`);
+                    // topLevel -> has the information about the root/start of the code
+                    // opcode -> the type of command
+                    // fields -> value chosen from list
+                    // inputs -> written value
+                    // if (value.opcode.contains('repeat'))
+
+                    let addBlockToTree = true;
+                    const newBlock = new BlockNode(key, value.opcode);
+                    const noOfInputs = Object.keys(value.inputs).length;
+                    const noOfFields = Object.keys(value.fields).length;
+                    if (noOfInputs === 0 && noOfFields === 0) {
+                        // eslint-disable-next-line no-console
+                        console.log(`//////////////// NO INPUTS NOR FIELDS ////////////////`);
+                    } else if (noOfInputs === 0) {
+                        console.log(`//////////////// NO INPUTS ////////////////`);
+                        newBlock.value = value.fields[Object.keys(value.fields)[0]][0];
+                        const fields = [];
+                        for (let j = 0; j < noOfFields; j++) {
+                            if (value.fields[Object.keys(value.fields)[j]].constructor === Array) {
+                                // fields.push(value.fields[Object.keys(value.fields)[j]][0]);
+                                fields.push(value.fields[Object.keys(value.fields)[j]][0].replace('_', ''));
+                            } else {
+                                fields.push(null);
+                                console.log(`//// find block ${value.inputs[Object.keys(value.inputs)[j]][1]} and get its value ////`);
+                                // this.setParentValue(newBlock.parentID, value, blockNodes);
+                            }
+                        }
+                        // if (fields.length === 1) {
+                        //     newBlock.value = fields[0];
+                        // } else {
+                        newBlock.value = fields;
+                        // }
+                    } else if (noOfFields === 0) {
+                        console.log(`//////////////// NO FIELDS ////////////////`);
+                        // if (noOfInputs > 1) {
+                        const inputs = [];
+                        for (let j = 0; j < noOfInputs; j++) {
+                            console.log('inputs:');
+                            console.log(value.inputs);
+                            if (value.inputs[Object.keys(value.inputs)[j]][1] !== null && value.inputs[Object.keys(value.inputs)[j]][1].constructor === Array) {
+                                // inputs.push(value.inputs[Object.keys(value.inputs)[j]][1][1]);
+                                inputs.push(value.inputs[Object.keys(value.inputs)[j]][1][1].replace('_', ''));
+                            } else {
+                                if (inputs.length === 0) {
+                                    inputs.push(null);
+                                }
+                                // console.log(value.inputs[Object.keys(value.inputs)[j]][1]); // ID
+                                if (Object.keys(value.inputs)[j].toUpperCase() === 'CONDITION' || Object.keys(value.inputs)[j].toUpperCase().endsWith('MENU')) {
+                                    console.log('new condition/menu');
+                                    newBlock.conditionID = value.inputs[Object.keys(value.inputs)[j]][1];
+                                    addBlockToTree = false;
+                                }
+                                console.log(`//// find block --${value.inputs[Object.keys(value.inputs)[j]][1]}-- and get its value ////`);
+                                //    find corresponding block and get its value
+                                // TODO IF CONDITIONS
+                                // trees.updateNodeFamily(newBlock);
+                                console.log('     NEEDS NO FIELDS VERSION OF VALUE SEARCH');
+                                //     this.setParentValue(newBlock.parentID, value, blockNodes);
+                            }
+                        }
+                        // if (inputs.length === 1) {
+                        //     newBlock.value = inputs[0];
+                        // } else {
+                        newBlock.value = inputs;
+                        // }
+                        // } else {
+                        //     newBlock.value = value.inputs[0];
+                        // }
+                    } else {
+                        console.log(`//////////////// INPUTS AND FIELDS ////////////////`);
+                        const inputFields = [];
+                        for (let j = 0; j < noOfInputs; j++) {
+                            if (value.inputs[Object.keys(value.inputs)[j]][1].constructor === Array) {
+                                inputFields.push(value.inputs[Object.keys(value.inputs)[j]][1][1]);
+                            } else {
+                                inputFields.push(null);
+                                console.log(`//// find block ${value.inputs[Object.keys(value.inputs)[j]][1]} and get its value ////`);
+                                // this.setParentValue(newBlock.parentID, value, blockNodes);
+                            }
+                            // inputFields.push(value.inputs[Object.keys(value.inputs)[j]][1][1]);
+                        }
+                        for (let j = 0; j < noOfFields; j++) {
+                            if (value.fields[Object.keys(value.fields)[j]].constructor === Array) {
+                                inputFields.push(value.fields[Object.keys(value.fields)[j]][0]);
+                            } else {
+                                inputFields.push(null);
+                                console.log(`//// find block ${value.inputs[Object.keys(value.inputs)[j]][1]} and get its value ////`);
+                                // this.setParentValue(newBlock.parentID, value, blockNodes);
+                            }
+                            // inputFields.push(value.fields[Object.keys(value.fields)[j]][0]);
+                        }
+                        // if (inputFields.length === 1) {
+                        //     newBlock.value = inputFields[0];
+                        // } else {
+                        newBlock.value = inputFields;
+                        // }
+                    }
+
+                    codeFromBlocks[key] = newBlock.opcode.toString()
+                        .concat(`${newBlock.value}`);
+                    newBlock.childID = value.next;
+                    newBlock.parentID = value.parent;
+                    if (newBlock.opcode.endsWith('menu')) {
+                        // blockNodes = this.setParentValue(newBlock.parentID, value, blockNodes);
+                        console.log(`MENU BLOCK COMPONENT`);
+                        console.log(value.fields);
+                        console.log(value.fields[Object.keys(value.fields)[0]][0]);
+                        const parentBlock = trees.findNodeByIDInAllBlocks(value.parent);
+                        // parentBlock.value = value.fields[Object.keys(value.fields)[0]][0];
+                        parentBlock.value = value.fields[Object.keys(value.fields)[0]][0].replaceAll('_', '');
+                        addBlockToTree = false;
+                        continue;
+                        // console.log(`Update node: ${newBlock.id} in tree`);
+                        // trees.updateNodeFamily(newBlock);
+                    } else {
+                        // eslint-disable-next-line no-console
+                        console.log(`ADDING NEW BLOCK TO TRANSLATE: ${newBlock.opcode} :NOT ADDING MENU`);
+                        // allBlocks.push(newBlock);
+                    }
+
+                    // if (value.topLevel && value.opcode.startsWith('event_') && !value.opcode.startsWith('event_broadcast')) {
+                    //     console.log('EVENT BLOCK HANDLER is missing');
+                    //     // eslint-disable-next-line no-console
+                    //     // console.log('FIX LINE 433'); // who knows which one it is now
+                    //     // if (trees.some(node => node.id === newBlock.id)) {
+                    //     //     // eslint-disable-next-line no-console
+                    //     //     console.log(`EXISTING ROOT: ${value.opcode} : ${key}`);
+                    //     //     // UPDATE
+                    //     // } else {
+                    //     //     trees.push(newBlock);
+                    //     //     // eslint-disable-next-line no-console
+                    //     //     console.log(`NEW EVENT ROOT: ${value.opcode} : ${key}`);
+                    //     // }
+                    //
+                    // } else
+                    if (value.topLevel) {
+                        newBlock.isRoot = true;
+
+                        if (trees.getRoots()
+                            .some(node => node.id === newBlock.id)) {
+                            // eslint-disable-next-line no-console
+                            console.log(`EXISTING RANDOM ROOT: ${value.opcode} : ${key}`);
+                            // UPDATE
+                        } else {
+                            // rootBlocks.push(newBlock);
+                            // eslint-disable-next-line no-console
+                            console.log(`NEW RANDOM ROOT: ${value.opcode} : ${key}`);
+                        }
+                    } else {
+                        trees.roots = trees.roots.filter(rootNode => rootNode.id !== newBlock.id);
+                        newBlock.isRoot = false;
+                        // DONE: check if not in rootBlocks, if yes -> remove
+                    }
+
+                    if (allBlocks.some(node => node.id === newBlock.id)) {
+                        // eslint-disable-next-line no-console
+                        // console.log(`EXISTING BLOCK: ${value.opcode} : ${key}`);
+                        // UPDATE
+                        // eslint-disable-next-line no-console
+                        console.log(`Update node: ${newBlock.id} in tree`);
+                        trees.updateNodeFamily(newBlock);
+                    } else {
+                        allBlocks.push(newBlock);
+                        if (trees.getRoots().length === 0) {
+                            trees.roots.push(newBlock);
+                        } else {
+                            // eslint-disable-next-line no-console
+                            console.log(`Add new node: ${newBlock.id} to tree`);
+                            if (addBlockToTree) {
+                                trees.addNode(newBlock);
+                            }
+                        }
+                        // // eslint-disable-next-line no-console
+                        // console.log('+++++++++++++++++++++++++++++++');
+                        // // eslint-disable-next-line no-console
+                        // console.log('Trees:');
+                        // // eslint-disable-next-line no-console
+                        // console.log(trees);
+                        // // eslint-disable-next-line no-console
+                        // console.log('+++++++++++++++++++++++++++++++');
+                    }
+                    // // eslint-disable-next-line no-console
+                    // console.log(`root blocks:`);
+                    // // eslint-disable-next-line no-console
+                    // console.log(rootBlocks);
+                    // // eslint-disable-next-line no-console
+                    // console.log(`event roots:`);
+                    // // eslint-disable-next-line no-console
+                    // console.log(trees.getRoots());
+                    // eslint-disable-next-line no-console
+                    console.log(`New block:`);
+                    // eslint-disable-next-line no-console
+                    console.log(newBlock.toString());
+                    // if (root === null) {
+                    //     root = new BlockNode(key, value.fields, value.opcode);
+                    // } else if (value.parent === null) {
+                    //     const oldRoot = root;
+                    //     root = new BlockNode(key, value.fields, value.opcode);
+                    //     root.child = oldRoot;
+                    //     oldRoot.parent = root;
+                    // } else {
+                    //     let currentNode = root;
+                    //     while (true) {
+                    //         if (currentNode.id === value.parent) {
+                    //
+                    //         }
+                    //     }
+                    // }
                 }
+
+                // codeFromBlocks = blockNodes;
+                // globalVariable.translatedCode = blockNodes.toString();
+                // eslint-disable-next-line no-console
+                console.log('ALL BLOCKS:');
+                // eslint-disable-next-line no-console
+                console.log(allBlocks);
             }
         }
         // // eslint-disable-next-line no-console
@@ -212,7 +715,7 @@ class Blocks extends React.Component {
             this.requestToolboxUpdate();
         }
         // eslint-disable-next-line no-console
-        console.log('1here');
+        // console.log('1here');
         if (this.props.isVisible === prevProps.isVisible) {
             if (this.props.stageSize !== prevProps.stageSize) {
                 // force workspace to redraw for the new stage size
@@ -221,13 +724,13 @@ class Blocks extends React.Component {
             return;
         }
         // eslint-disable-next-line no-console
-        console.log('2here');
+        // console.log('2here');
         const projectJson = this.VirtualMachine.toJSON();
         // eslint-disable-next-line no-console
         console.log(projectJson);
 
         // eslint-disable-next-line no-console
-        console.log('3here');
+        // console.log('3here');
         // @todo hack to resize blockly manually in case resize happened while hidden
         // @todo hack to reload the workspace due to gui bug #413
         if (this.props.isVisible) { // Scripts tab
@@ -246,7 +749,7 @@ class Blocks extends React.Component {
             this.workspace.setVisible(false);
         }
         // eslint-disable-next-line no-console
-        console.log('4here');
+        // console.log('4here');
     }
     componentWillUnmount () {
         // eslint-disable-next-line no-console
@@ -308,7 +811,7 @@ class Blocks extends React.Component {
 
     withToolboxUpdates (fn) {
         // eslint-disable-next-line no-console
-        console.log('toolbox queued update');
+        console.log('with Toolbox update');
         // if there is a queued toolbox update, we need to wait
         if (this.toolboxUpdateTimeout) {
             this.toolboxUpdateQueue.push(fn);
@@ -337,9 +840,11 @@ class Blocks extends React.Component {
         this.props.vm.addListener('BLOCKSINFO_UPDATE', this.handleBlocksInfoUpdate);
         this.props.vm.addListener('PERIPHERAL_CONNECTED', this.handleStatusButtonUpdate);
         this.props.vm.addListener('PERIPHERAL_DISCONNECTED', this.handleStatusButtonUpdate);
-        this.props.vm.addListener('BLOCK_DRAG_UPDATE', this.onBlockChange);
+        this.props.vm.addListener('BLOCK_DRAG_UPDATE', this.onBlockUpdate);
+        // this.props.vm.addListener('BLOCK_DRAG_END', this.onBlockChange);
     }
     detachVM () {
+        console.log('detach vm');
         this.props.vm.removeListener('SCRIPT_GLOW_ON', this.onScriptGlowOn);
         this.props.vm.removeListener('SCRIPT_GLOW_OFF', this.onScriptGlowOff);
         this.props.vm.removeListener('BLOCK_GLOW_ON', this.onBlockGlowOn);
@@ -351,10 +856,13 @@ class Blocks extends React.Component {
         this.props.vm.removeListener('BLOCKSINFO_UPDATE', this.handleBlocksInfoUpdate);
         this.props.vm.removeListener('PERIPHERAL_CONNECTED', this.handleStatusButtonUpdate);
         this.props.vm.removeListener('PERIPHERAL_DISCONNECTED', this.handleStatusButtonUpdate);
-        this.props.vm.removeListener('BLOCK_DRAG_UPDATE', this.onBlockChange);
+        this.props.vm.removeListener('BLOCK_DRAG_UPDATE', this.onBlockUpdate);
+        // this.props.vm.removeListener('BLOCK_DRAG_END', this.onBlockChange);
     }
 
     updateToolboxBlockValue (id, value) {
+        // eslint-disable-next-line no-console
+        console.log('update toolbox block value');
         this.withToolboxUpdates(() => {
             const block = this.workspace
                 .getFlyout()
@@ -367,6 +875,8 @@ class Blocks extends React.Component {
     }
 
     onTargetsUpdate () {
+        // eslint-disable-next-line no-console
+        console.log('targets update');
         if (this.props.vm.editingTarget && this.workspace.getFlyout()) {
             ['glide', 'move', 'set'].forEach(prefix => {
                 this.updateToolboxBlockValue(`${prefix}x`, Math.round(this.props.vm.editingTarget.x).toString());
@@ -374,7 +884,9 @@ class Blocks extends React.Component {
             });
         }
     }
-    onWorkspaceMetricsChange () {
+    onWorkspaceMetricsChange () { // DETECTS CHANGES IN SIZE/WIDTH OF BLOCKS
+        // eslint-disable-next-line no-console
+        console.log('metrics change update');
         const target = this.props.vm.editingTarget;
         if (target && target.id) {
             // Dispatch updateMetrics later, since onWorkspaceMetricsChange may be (very indirectly)
@@ -391,9 +903,29 @@ class Blocks extends React.Component {
         }
     }
 
-    // onBlockChange() {
+    onBlockUpdate (data) {
+        console.log('on block update');
+        // // // TODO want to eventually move zip creation out of here, and perhaps into scratch-storage
+        // console.log('ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo onBlockUpdate function');
+        // console.log(data);
+        // console.log('ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo onBlockUpdate function');
+        this.onWorkspaceMetricsChange();
+        // this.props.vm.refreshWorkspace();
+        // eslint-disable-next-line no-console,no-invalid-this
+        // console.log(this.ScratchBlocks.Xml.workspaceToDom(this.workspace));
+        // return true;
+    }
+
+    // onBlockChange (data) {
+    //     // // // TODO want to eventually move zip creation out of here, and perhaps into scratch-storage
+    //     console.log('ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo onBlockChange function');
+    //     console.log(data);
+    //     console.log('ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo onBlockChange function');
+    //     // this.props.vm.refreshWorkspace();
+    //     // this.onWorkspaceMetricsChange();
     //     // eslint-disable-next-line no-console,no-invalid-this
-    //     console.log(this.ScratchBlocks.Xml.workspaceToDom(this.workspace))
+    //     // console.log(this.ScratchBlocks.Xml.workspaceToDom(this.workspace));
+    //     // return true;
     // }
 
 
@@ -405,6 +937,7 @@ class Blocks extends React.Component {
 
     // =============================================================
     getSaveToComputerHandler (downloadProjectCallback) {
+        console.log('get save to computer');
         downloadProjectCallback();
         // return () => {
         //     // this.props.onRequestCloseFile();
@@ -415,77 +948,84 @@ class Blocks extends React.Component {
         //     }
         // };
     }
-    onBlockChange () {
-        // eslint-disable-next-line no-console
-        console.log('Aloha');
-        // eslint-disable-next-line no-console
-        // console.log(ScratchBlocks.Xml.workspaceToDom(this.workspace));
-        // eslint-disable-next-line no-console
-        console.log('22Aloha22');
-
-        // ==========================
-        // const projectJson = this.toJSON();
-        //
-        // // TODO want to eventually move zip creation out of here, and perhaps
-        // // into scratch-storage
-        // const zip = new JSZip();
-        //
-        // // Put everything in a zip file
-        // zip.file('project.json', projectJson);
-        // this._addFileDescsToZip(soundDescs.concat(costumeDescs), zip);
-        //
-        // return zip.generateAsync({
-        //     type: 'blob',
-        //     mimeType: 'application/x.scratch.sb3',
-        //     compression: 'DEFLATE',
-        //     compressionOptions: {
-        //         level: 6 // Tradeoff between best speed (1) and best compression (9)
-        //     }
-        // });
-        // ==========================
-
-        // eslint-disable-next-line no-console
-        console.log(this.VirtualMachine);
-        if (typeof this.VirtualMachine !== 'undefined') {
-            const projectJson = this.VirtualMachine.toJSON();
-            // this.props.vm.toJSON();
-            // this.state.scratchGui.vm.toJSON();
-            // const zip = new JSZip();
-            // zip.file('project.json', projectJson);
-
-            // eslint-disable-next-line no-console
-            console.log(projectJson);
-        }
-
-        // <SB3Downloader>{(className, downloadProjectCallback) => (
-        //     this.getSaveToComputerHandler(downloadProjectCallback)
-        // )}</SB3Downloader>
-        // SB3Downloader.downloadProject();
-        // <SB3Downloader>{(className, downloadProjectCallback) => (
-        //     // eslint-disable-next-line no-invalid-this
-        //     this.getSaveToComputerHandler(downloadProjectCallback)
-        // )}</SB3Downloader>;
-        // eslint-disable-next-line no-console
-        console.log('33Aloha33');
-    }
+    // onBlockChange () {
+    //     // eslint-disable-next-line no-console
+    //     console.log('onBlockChange function');
+    //
+    //     // // eslint-disable-next-line no-console
+    //     // // console.log(ScratchBlocks.Xml.workspaceToDom(this.workspace));
+    //     // // eslint-disable-next-line no-console
+    //     // console.log('22Aloha22');
+    //     //
+    //     // // ==========================
+    //     // // const projectJson = this.toJSON();
+    //     // //
+    //     // // // TODO want to eventually move zip creation out of here, and perhaps into scratch-storage
+    //     // // const zip = new JSZip();
+    //     // //
+    //     // // // Put everything in a zip file
+    //     // // zip.file('project.json', projectJson);
+    //     // // this._addFileDescsToZip(soundDescs.concat(costumeDescs), zip);
+    //     // //
+    //     // // return zip.generateAsync({
+    //     // //     type: 'blob',
+    //     // //     mimeType: 'application/x.scratch.sb3',
+    //     // //     compression: 'DEFLATE',
+    //     // //     compressionOptions: {
+    //     // //         level: 6 // Tradeoff between best speed (1) and best compression (9)
+    //     // //     }
+    //     // // });
+    //     // // ==========================
+    //     //
+    //     // // eslint-disable-next-line no-console
+    //     // console.log(this.VirtualMachine);
+    //     // if (typeof this.VirtualMachine !== 'undefined') {
+    //     //     const projectJson = this.VirtualMachine.toJSON();
+    //     //     // this.props.vm.toJSON();
+    //     //     // this.state.scratchGui.vm.toJSON();
+    //     //     // const zip = new JSZip();
+    //     //     // zip.file('project.json', projectJson);
+    //     //
+    //     //     // eslint-disable-next-line no-console
+    //     //     console.log(projectJson);
+    //     // }
+    //     //
+    //     // // <SB3Downloader>{(className, downloadProjectCallback) => (
+    //     // //     this.getSaveToComputerHandler(downloadProjectCallback)
+    //     // // )}</SB3Downloader>
+    //     // // SB3Downloader.downloadProject();
+    //     // // <SB3Downloader>{(className, downloadProjectCallback) => (
+    //     // //     // eslint-disable-next-line no-invalid-this
+    //     // //     this.getSaveToComputerHandler(downloadProjectCallback)
+    //     // // )}</SB3Downloader>;
+    //     // // eslint-disable-next-line no-console
+    //     // console.log('33Aloha33');
+    // }
     // =============================================================
 
     onScriptGlowOn (data) {
+        console.log('S-GLOW ON');
         this.workspace.glowStack(data.id, true);
     }
     onScriptGlowOff (data) {
+        console.log('S-GLOW OFF');
         this.workspace.glowStack(data.id, false);
     }
     onBlockGlowOn (data) {
+        console.log('B-GLOW ON');
         this.workspace.glowBlock(data.id, true);
     }
     onBlockGlowOff (data) {
+        console.log('B-GLOW OFF');
         this.workspace.glowBlock(data.id, false);
     }
     onVisualReport (data) {
         this.workspace.reportValue(data.id, data.value);
     }
     getToolboxXML () {
+        console.log('get toolbox xml');
+        // eslint-disable-next-line no-console
+        // console.log('------------------------------ GET TOOLBOX');
         // Use try/catch because this requires digging pretty deep into the VM
         // Code inside intentionally ignores several error situations (no stage, etc.)
         // Because they would get caught by this try/catch
@@ -497,6 +1037,12 @@ class Blocks extends React.Component {
             const stageCostumes = stage.getCostumes();
             const targetCostumes = target.getCostumes();
             const targetSounds = target.getSounds();
+            // eslint-disable-next-line no-console
+            // console.log('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx getBlocksXML');
+            // eslint-disable-next-line no-console
+            // console.log(this.props.vm.runtime.getBlocksXML(target));
+            // eslint-disable-next-line no-console
+            // console.log(target);
             const dynamicBlocksXML = this.props.vm.runtime.getBlocksXML(target);
             return makeToolboxXML(false, target.isStage, target.id, dynamicBlocksXML,
                 targetCostumes[targetCostumes.length - 1].name,
@@ -508,6 +1054,10 @@ class Blocks extends React.Component {
         }
     }
     onWorkspaceUpdate (data) {
+        // eslint-disable-next-line no-console
+        console.log('workspace update');
+        // eslint-disable-next-line no-console
+        // console.log(data);
         // When we change sprites, update the toolbox to have the new sprite's blocks
         const toolboxXML = this.getToolboxXML();
         if (toolboxXML) {
@@ -554,6 +1104,7 @@ class Blocks extends React.Component {
         this.workspace.clearUndo();
     }
     handleExtensionAdded (categoryInfo) {
+        console.log('extension added');
         const defineBlocks = blockInfoArray => {
             if (blockInfoArray && blockInfoArray.length > 0) {
                 const staticBlocksJson = [];
@@ -595,10 +1146,16 @@ class Blocks extends React.Component {
         }
     }
     handleBlocksInfoUpdate (categoryInfo) {
+        // eslint-disable-next-line no-console
+        console.log('blocks info update');
         // @todo Later we should replace this to avoid all the warnings from redefining blocks.
         this.handleExtensionAdded(categoryInfo);
     }
     handleCategorySelected (categoryId) {
+        // eslint-disable-next-line no-console
+        console.log('category selected');
+        // eslint-disable-next-line no-console
+        // console.log(categoryId);
         const extension = extensionData.find(ext => ext.extensionId === categoryId);
         if (extension && extension.launchPeripheralConnectionFlow) {
             this.handleConnectionModalStart(categoryId);
@@ -609,9 +1166,11 @@ class Blocks extends React.Component {
         });
     }
     setBlocks (blocks) {
+        console.log('set blocks');
         this.blocks = blocks;
     }
     handlePromptStart (message, defaultValue, callback, optTitle, optVarType) {
+        console.log('prompt start');
         const p = {prompt: {callback, message, defaultValue}};
         p.prompt.title = optTitle ? optTitle :
             this.ScratchBlocks.Msg.VARIABLE_MODAL_TITLE;
@@ -625,12 +1184,15 @@ class Blocks extends React.Component {
         this.setState(p);
     }
     handleConnectionModalStart (extensionId) {
+        console.log('connsection modal start');
         this.props.onOpenConnectionModal(extensionId);
     }
     handleStatusButtonUpdate () {
+        console.log('status button update');
         this.ScratchBlocks.refreshStatusButtons(this.workspace);
     }
     handleOpenSoundRecorder () {
+        console.log('sound recorder');
         this.props.onOpenSoundRecorder();
     }
 
@@ -640,6 +1202,7 @@ class Blocks extends React.Component {
      * to the variable validation prompt callback used in scratch-blocks.
      */
     handlePromptCallback (input, variableOptions) {
+        console.log('prompt callback');
         this.state.prompt.callback(
             input,
             this.props.vm.runtime.getAllVarNamesOfType(this.state.prompt.varType),
@@ -647,15 +1210,18 @@ class Blocks extends React.Component {
         this.handlePromptClose();
     }
     handlePromptClose () {
+        console.log('prompt close');
         this.setState({prompt: null});
     }
     handleCustomProceduresClose (data) {
+        console.log('custom procedure close');
         this.props.onRequestCloseCustomProcedures(data);
         const ws = this.workspace;
         ws.refreshToolboxSelection_();
         ws.toolbox_.scrollToCategoryById('myBlocks');
     }
     handleDrop (dragInfo) {
+        console.log('handle drop');
         fetch(dragInfo.payload.bodyUrl)
             .then(response => response.json())
             .then(blocks => this.props.vm.shareBlocksToTarget(blocks, this.props.vm.editingTarget.id))
@@ -665,6 +1231,7 @@ class Blocks extends React.Component {
             });
     }
     render () {
+        console.log('render');
         /* eslint-disable no-unused-vars */
         const {
             anyModalVisible,
@@ -724,9 +1291,34 @@ class Blocks extends React.Component {
                         onRequestClose={this.handleCustomProceduresClose}
                     />
                 ) : null}
+                <div>
+                    {'hello, its me'}
+                </div>
             </React.Fragment>
         );
     }
+    // setParentValue (parentID, block, currentNodes) {
+    //     console.log('set parent value');
+    //     for (let blockNodeIndex = (currentNodes.length - 1); blockNodeIndex >= 0; blockNodeIndex--) {
+    //         if (currentNodes[blockNodeIndex].id === block.parentNode) {
+    //             // console.log(`FOUND PARENT: ${blockNodes[blockNodeIndex].id} <- ${value}`);
+    //             for (let j = 0; j < currentNodes[blockNodeIndex].value.length; j++) {
+    //                 if (currentNodes[blockNodeIndex].value[j] === null) {
+    //                     currentNodes[blockNodeIndex].value[j] = block.fields[Object.keys(block.fields)[0]][0];
+    //                     break;
+    //                 }
+    //             }
+    //             // blockNodes[blockNodes.length - 1].value = value.fields[Object.keys(value.fields)[0]][0];
+    //             // if (blockNodes[blockNodes.length - 1].value !== null) {
+    //             //
+    //             // } else {
+    //             //     blockNodes[blockNodes.length - 1].value = value.fields[Object.keys(value.fields)[0]][0];
+    //             // }
+    //             break;
+    //         }
+    //     }
+    //     return currentNodes;
+    // }
 }
 
 Blocks.propTypes = {

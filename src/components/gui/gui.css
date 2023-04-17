@@ -62,7 +62,7 @@
 
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-weight: 500;
-    font-size: 0.80rem;
+    font-size: 0.80rem;     /* FONT SIZE - nothing? */
 
     /* Overrides for react-tabs styling */
     margin: 0 !important;
@@ -78,7 +78,7 @@
     border: 1px solid $ui-black-transparent;
 
     padding: 0.125rem 1.25rem 0;
-    font-size: 0.75rem;
+    font-size: 0.75rem;     /* FONT SIZE - tabs (code, costumes, sounds) */
 
     background-color: $ui-tertiary;
     color: $text-primary-transparent;

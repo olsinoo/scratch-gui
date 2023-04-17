@@ -44,6 +44,8 @@ const vmManagerHOC = function (WrappedComponent) {
             // and they weren't both that way until now... load project!
             if (this.props.isLoadingWithId && this.props.fontsLoaded &&
                 (!prevProps.isLoadingWithId || !prevProps.fontsLoaded)) {
+                console.log('component did update in manager-hoc');
+                console.log(prevProps);
                 this.loadProject();
             }
             // Start the VM if entering editor mode with an unstarted vm
@@ -52,6 +54,7 @@ const vmManagerHOC = function (WrappedComponent) {
             }
         }
         loadProject () {
+            console.log('loading project in manager-hoc');
             return this.props.vm.loadProject(this.props.projectData)
                 .then(() => {
                     this.props.onLoadedProject(this.props.loadingState, this.props.canSave);
@@ -121,7 +124,11 @@ const vmManagerHOC = function (WrappedComponent) {
     };
 
     const mapStateToProps = state => {
+        console.log('================================================= pre-loaded state:');
+        console.log(state);
         const loadingState = state.scratchGui.projectState.loadingState;
+        console.log('================================================= current loaded state:');
+        console.log(loadingState);
         return {
             fontsLoaded: state.scratchGui.fontsLoaded,
             isLoadingWithId: getIsLoadingWithId(loadingState),

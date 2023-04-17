@@ -13,6 +13,11 @@ const guiReducers = {
     scratchPaint: ScratchPaintReducer
 };
 
+const globalVariable = {
+    translatedCode: '',
+    originalCode: ''
+};
+
 export {
     GUI as default,
     AppStateHOC,
@@ -27,5 +32,8 @@ export {
     localesInitialState,
     remixProject,
     setFullScreen,
-    setPlayer
+    setPlayer,
+    globalVariable
 };
+
+
