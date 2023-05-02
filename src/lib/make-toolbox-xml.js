@@ -157,18 +157,18 @@ const looks = function (isInitialSetup, isStage, targetId, costumeName, backdrop
     return `
     <category name="%{BKY_CATEGORY_LOOKS}" id="looks" colour="#9966FF" secondaryColour="#774DCB">
         ${isStage ? '' : `
-        // <block type="looks_sayforsecs">
-        //     <value name="MESSAGE">
-        //         <shadow type="text">
-        //             <field name="TEXT">${hello}</field>
-        //         </shadow>
-        //     </value>
-        //     <value name="SECS">
-        //         <shadow type="math_number">
-        //             <field name="NUM">2</field>
-        //         </shadow>
-        //     </value>
-        // </block>
+<!--        <block type="looks_sayforsecs">-->
+<!--            <value name="MESSAGE">-->
+<!--                <shadow type="text">-->
+<!--                    <field name="TEXT">${hello}</field>-->
+<!--                </shadow>-->
+<!--            </value>-->
+<!--            <value name="SECS">-->
+<!--                <shadow type="math_number">-->
+<!--                    <field name="NUM">2</field>-->
+<!--                </shadow>-->
+<!--            </value>-->
+<!--        </block>-->
         <block type="looks_say">
             <value name="MESSAGE">
                 <shadow type="text">
@@ -176,43 +176,43 @@ const looks = function (isInitialSetup, isStage, targetId, costumeName, backdrop
                 </shadow>
             </value>
         </block>
-        // <block type="looks_thinkforsecs">
-        //     <value name="MESSAGE">
-        //         <shadow type="text">
-        //             <field name="TEXT">${hmm}</field>
-        //         </shadow>
-        //     </value>
-        //     <value name="SECS">
-        //         <shadow type="math_number">
-        //             <field name="NUM">2</field>
-        //         </shadow>
-        //     </value>
-        // </block>
-        // <block type="looks_think">
-        //     <value name="MESSAGE">
-        //         <shadow type="text">
-        //             <field name="TEXT">${hmm}</field>
-        //         </shadow>
-        //     </value>
-        // </block>
+<!--        <block type="looks_thinkforsecs">-->
+<!--            <value name="MESSAGE">-->
+<!--                <shadow type="text">-->
+<!--                    <field name="TEXT">${hmm}</field>-->
+<!--                </shadow>-->
+<!--            </value>-->
+<!--            <value name="SECS">-->
+<!--                <shadow type="math_number">-->
+<!--                    <field name="NUM">2</field>-->
+<!--                </shadow>-->
+<!--            </value>-->
+<!--        </block>-->
+<!--        <block type="looks_think">-->
+<!--            <value name="MESSAGE">-->
+<!--                <shadow type="text">-->
+<!--                    <field name="TEXT">${hmm}</field>-->
+<!--                </shadow>-->
+<!--            </value>-->
+<!--        </block>-->
         ${blockSeparator}
         `}
         ${isStage ? `
-            <block type="looks_switchbackdropto">
-                <value name="BACKDROP">
-                    <shadow type="looks_backdrops">
-                        <field name="BACKDROP">${backdropName}</field>
-                    </shadow>
-                </value>
-            </block>
-            <block type="looks_switchbackdroptoandwait">
-                <value name="BACKDROP">
-                    <shadow type="looks_backdrops">
-                        <field name="BACKDROP">${backdropName}</field>
-                    </shadow>
-                </value>
-            </block>
-            <block type="looks_nextbackdrop"/>
+<!--            <block type="looks_switchbackdropto">-->
+<!--                <value name="BACKDROP">-->
+<!--                    <shadow type="looks_backdrops">-->
+<!--                        <field name="BACKDROP">${backdropName}</field>-->
+<!--                    </shadow>-->
+<!--                </value>-->
+<!--            </block>-->
+<!--            <block type="looks_switchbackdroptoandwait">-->
+<!--                <value name="BACKDROP">-->
+<!--                    <shadow type="looks_backdrops">-->
+<!--                        <field name="BACKDROP">${backdropName}</field>-->
+<!--                    </shadow>-->
+<!--                </value>-->
+<!--            </block>-->
+<!--            <block type="looks_nextbackdrop"/>-->
         ` : `
 <!--            <block id="${targetId}_switchcostumeto" type="looks_switchcostumeto">-->
 <!--                <value name="COSTUME">-->
@@ -246,42 +246,42 @@ const looks = function (isInitialSetup, isStage, targetId, costumeName, backdrop
                 </value>
             </block>
         `}
-        // ${blockSeparator}
-        // <block type="looks_changeeffectby">
-        //     <value name="CHANGE">
-        //         <shadow type="math_number">
-        //             <field name="NUM">25</field>
-        //         </shadow>
-        //     </value>
-        // </block>
-        // <block type="looks_seteffectto">
-        //     <value name="VALUE">
-        //         <shadow type="math_number">
-        //             <field name="NUM">0</field>
-        //         </shadow>
-        //     </value>
-        // </block>
-        // <block type="looks_cleargraphiceffects"/>
+        ${blockSeparator}
+<!--         <block type="looks_changeeffectby">-->
+<!--             <value name="CHANGE">-->
+<!--                 <shadow type="math_number">-->
+<!--                     <field name="NUM">25</field>-->
+<!--                 </shadow>-->
+<!--             </value>-->
+<!--         </block>-->
+<!--         <block type="looks_seteffectto">-->
+<!--             <value name="VALUE">-->
+<!--                 <shadow type="math_number">-->
+<!--                     <field name="NUM">0</field>-->
+<!--                 </shadow>-->
+<!--             </value>-->
+<!--         </block>-->
+<!--         <block type="looks_cleargraphiceffects"/>-->
         ${blockSeparator}
         ${isStage ? '' : `
             <block type="looks_show"/>
             <block type="looks_hide"/>
-        ${blockSeparator}
-            <block type="looks_gotofrontback"/>
-            <block type="looks_goforwardbackwardlayers">
-                <value name="NUM">
-                    <shadow type="math_integer">
-                        <field name="NUM">1</field>
-                    </shadow>
-                </value>
-            </block>
+<!--        ${blockSeparator}-->
+<!--            <block type="looks_gotofrontback"/>-->
+<!--            <block type="looks_goforwardbackwardlayers">-->
+<!--                <value name="NUM">-->
+<!--                    <shadow type="math_integer">-->
+<!--                        <field name="NUM">1</field>-->
+<!--                    </shadow>-->
+<!--                </value>-->
+<!--            </block>-->
         `}
         ${isStage ? `
-            <block id="backdropnumbername" type="looks_backdropnumbername"/>
+<!--             <block id="backdropnumbername" type="looks_backdropnumbername"/>-->
         ` : `
-            <block id="${targetId}_costumenumbername" type="looks_costumenumbername"/>
-            <block id="backdropnumbername" type="looks_backdropnumbername"/>
-            <block id="${targetId}_size" type="looks_size"/>
+<!--             <block id="${targetId}_costumenumbername" type="looks_costumenumbername"/>-->
+<!--             <block id="backdropnumbername" type="looks_backdropnumbername"/>-->
+             <block id="${targetId}_size" type="looks_size"/>
         `}
         ${categorySeparator}
     </category>
@@ -489,12 +489,12 @@ const sensing = function (isInitialSetup, isStage) {
         ${blockSeparator}
         <block id="timer" type="sensing_timer"/>
         <block type="sensing_resettimer"/>
-        ${blockSeparator}
-        <block id="of" type="sensing_of">
-            <value name="OBJECT">
-                <shadow id="sensing_of_object_menu" type="sensing_of_object_menu"/>
-            </value>
-        </block>
+        // ${blockSeparator}
+<!--        <block id="of" type="sensing_of">-->
+<!--            <value name="OBJECT">-->
+<!--                <shadow id="sensing_of_object_menu" type="sensing_of_object_menu"/>-->
+<!--            </value>-->
+<!--        </block>-->
         ${blockSeparator}
         <block id="current" type="sensing_current"/>
         <block type="sensing_dayssince2000"/>
@@ -758,7 +758,7 @@ const makeToolboxXML = function (isInitialSetup, isStage = true, targetId, categ
     console.log(categoriesXML);
     // REMOVE CATEGORIES
     const motionXML = moveCategory('motion') || motion(isInitialSetup, isStage, targetId);
-    // const looksXML = moveCategory('looks') || looks(isInitialSetup, isStage, targetId, costumeName, backdropName);
+    const looksXML = moveCategory('looks') || looks(isInitialSetup, isStage, targetId, costumeName, backdropName);
     // const soundXML = moveCategory('sound') || sound(isInitialSetup, isStage, targetId, soundName);
     const eventsXML = moveCategory('event') || events(isInitialSetup, isStage, targetId);
     const controlXML = moveCategory('control') || control(isInitialSetup, isStage, targetId);
@@ -771,7 +771,7 @@ const makeToolboxXML = function (isInitialSetup, isStage = true, targetId, categ
     const everything = [
         xmlOpen,
         motionXML, gap,
-        // looksXML, gap,
+        looksXML, gap,
         // soundXML, gap,
         eventsXML, gap,
         controlXML, gap,

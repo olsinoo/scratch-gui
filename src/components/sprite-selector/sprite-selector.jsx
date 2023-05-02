@@ -1,7 +1,6 @@
 import PropTypes from 'prop-types';
 import React from 'react';
 import {defineMessages, injectIntl, intlShape} from 'react-intl';
-// import createFragment from "react-addons-create-fragment";
 
 import Box from '../box/box.jsx';
 import SpriteInfo from '../../containers/sprite-info.jsx';
@@ -9,7 +8,7 @@ import SpriteList from './sprite-list.jsx';
 import ActionMenu from '../action-menu/action-menu.jsx';
 import {STAGE_DISPLAY_SIZES} from '../../lib/layout-constants';
 import {isRtl} from 'scratch-l10n';
-import {codeFromBlocks, trees} from '../../containers/blocks.jsx';
+import {trees} from '../../containers/blocks.jsx';
 import styles from './sprite-selector.css';
 
 import fileUploadIcon from '../action-menu/icon--file-upload.svg';
@@ -17,9 +16,7 @@ import paintIcon from '../action-menu/icon--paint.svg';
 import spriteIcon from '../action-menu/icon--sprite.svg';
 import surpriseIcon from '../action-menu/icon--surprise.svg';
 import searchIcon from '../action-menu/icon--search.svg';
-import {globalVariable} from '../../index';
-// import globalVariable from '../../index.js';
-// import {blockCode} from '../../containers/blocks';
+import {returns} from 'web-audio-test-api/lib/decorators/methods';
 
 const messages = defineMessages({
     addSpriteFromLibrary: {
@@ -44,182 +41,331 @@ const messages = defineMessages({
     }
 });
 
-const reverseObj = obj =>
-    Object.keys(obj)
-        .reverse()
-        .reduce((a, key, _) => {
-            a[key] = obj[key];
-            return a;
-        }, {});
+let imports = new Set(['Beetle']);
 
-const originalVersionOfGCSFB = () => {
-    // const vysledok = Object.values(codeFromBlocks);
-    // // eslint-disable-next-line no-console
-    // console.log('- -- --- ---- ----- ------ GETTING STRING FROM CODE');
-    // // eslint-disable-next-line no-console
-    // console.log(typeof vysledok);
-    // // eslint-disable-next-line no-console
-    // console.log(vysledok);
-    // eslint-disable-next-line no-console
-    console.log('- -- --- ---- ----- ------ GETTING STRING FROM CODE');
-    // eslint-disable-next-line no-console
-    console.log(typeof codeFromBlocks);
-    // eslint-disable-next-line no-console
-    console.log(codeFromBlocks);
-
-    // for (const [key, _] of codeFromBlocks) {
-    //     vysledok += key;
-    //     vysledok += '\n';
-    // }
-    // return vysledok.map((i, key) => <div key={key}>{`\t       ${i}`}</div>);
-    // <div key={key}>{`${value.opcode}(${value.value})`}</div>
-    return Object.values(codeFromBlocks).map(value => <div key={value.id}>{`${value.opcode}(${value.value})`}</div>);
-    // return '';
-    // return vysledok.join('<br><br>');
-};
-
-const translateCode = inputStatement => {
+const translateCode = (inputStatement, isValue = false, values = []) => {
+    if (inputStatement === null) return [`${inputStatement}${isValue ? '' : '('}`, `${isValue ? '' : ')'}`];
     switch (inputStatement) {
-    case 'movesteps': return 'forward';
-    case 'turnright': return 'turnRight';
-    case 'turnleft': return 'turnLeft';
-    case 'goto': return 'goTo';
-    case 'gotoxy': return 'goTo';
-    case 'if': return 'if ';
-    case 'if_else': return 'DIVIDE';
-    case 'else': return 'else ';
-    case 'gotoxy': return '';
-    case 'gotoxy': return '';
-    case 'gotoxy': return '';
-    case 'gotoxy': return '';
-    case 'gotoxy': return '';
-    default: return '';
+    // motion
+    case 'movesteps': return ['forward(', ')'];
+    case 'turnright': return ['turnRight(', ')'];
+    case 'turnleft': return ['turnLeft(', ')'];
+    case 'goto': return ['goTo(', ')'];
+    case 'gotoxy': return ['goToXY(', ')'];
+    case 'glideto': return ['glideTo(', ')'];
+    case 'glidesecstoxy': return ['glideToXYinSeconds(', ')'];
+    case 'pointindirection': return [`beetle.heading = ${values[0]}`, '', true];
+    case 'pointtowards': return ['pointTowards(', ')'];
+    case 'changexby': return ['changeXby(', ')'];
+    case 'setx': return [`beetle.x = ${values[0]}`, '', true];
+    case 'changeyby': return ['changeYby(', ')'];
+    case 'sety': return [`beetle.y = ${values[0]}`, '', true];
+    case 'ifonedgebounce': return ['ifOnEdgeBounce(', ')'];
+    case 'setrotationstyle': return ['setRotationStyle(', ')'];
+    case 'xposition': return ['beetle.x', '', true];
+    case 'yposition': return ['beetle.y', '', true];
+    case 'direction': return ['beetle.heading', '', true];
+        // looks
+    case 'say': return ['print(', ')'];
+    case 'changesizeby': return ['changeSizeBy(', ')'];
+    case 'setsizeto': return ['beetle.size = ', ''];
+    case 'show': return ['show(', ')'];
+    case 'hide': return ['hide(', ')'];
+    case 'size': return ['beetle.size', '', true];
+        // sounds
+        // events
+    case 'whenflagclicked': return ['def whenFlagClicked(', '):'];
+    case 'whenkeypressed': return ['def whenKeyPressed("', '"):'];
+    case 'whenthisspriteclicked': return ['def whenSpriteClicked(', '):'];
+    case 'whenbackdropswitchesto': return ['def whenBackdropSwitchesTo("', '"):'];
+    case 'whengreaterthan': return [`def when${values[1].charAt(0).toUpperCase() + values[1].slice(1).toLowerCase()}GreaterThan(${values[0]}):`, '', true];
+    case 'whenbroadcastreceived': return ['def receivedMessage("', '"):'];
+    case 'broadcast': return [`broadcast("${values[0]}")`, '', true];
+    case 'broadcastandwait': return [`broadcastAndWait("${values[0]}")`, '', true];
+        // control
+    // wait
+    case 'repeat': return [`for ${values.toString()} in range(`, '):'];
+    case 'forever': return ['while True', ':'];
+    case 'if': return ['if (', '):'];
+    case 'if_else': return ['if (', '):'];
+    case 'else': return ['else:', ''];
+    case 'wait_until': return ['waitUntil(', ')'];
+    // repeat_until is a special case
+    // stop all
+    case 'create_clone_of': return ['createCloneOf(', ')'];
+    case 'start_as_clone': return [`def whenStartedAsClone():`, '', true];
+    case 'delete_this_clone': return ['deleteClone()', '', true];
+        // sensing
+    case 'touchingobject': return ['isTouching(beetle, ', ')'];
+    case 'touchingcolor': return ['isTouchingColour(beetle, ', ')'];
+    case 'coloristouchingcolor': return ['isTouching(', ')'];
+    case 'distanceto': return ['distance(beetle, ', ')'];
+    case 'askandwait': return ['askAndWait(', ')'];
+    case 'answer': return ['answer', '', true];
+    case 'keypressed': return ['isKeyPressed(', ')'];
+    case 'mousedown': return ['isMouseDown(', ')'];
+    case 'mousex': return ['mouse.x', '', true];
+    case 'mousey': return ['mouse.y', '', true];
+    case 'setdragmode': return ['beetle.dragMode = ', ''];
+    case 'loudness': return ['loudness', '', true];
+    case 'timer': return ['timer', '', true];
+    case 'resettimer': return ['timer.reset(', ')'];
+    case 'current': return ['current(', ')'];
+    case 'dayssince2000': return ['daysSince2000(', ')'];
+    case 'username': return ['username', '', true];
+        // operators
+    case 'add': return [`${values[0]} + ${values[1]}`, '', true];
+    case 'subtract': return [`${values[0]} - ${values[1]}`, '', true];
+    case 'multiply': return [`${values[0]} * ${values[1]}`, '', true];
+    case 'divide': return [`${values[0]} / ${values[1]}`, '', true];
+    case 'random': {
+        imports.add('random');
+        return ['random.randInt(', ')'];
+    }
+    case 'gt': return [`${values[0]} > ${values[1]}`, '', true];
+    case 'lt': return [`${values[0]} < ${values[1]}`, '', true];
+    case 'equals': return [`${values[0]} = ${values[1]}`, '', true];
+    case 'and': return [`${values[0]} and ${values[1]}`, '', true];
+    case 'or': return [`${values[0]} or ${values[1]}`, '', true];
+    case 'not': return [`not ${values}`, '', true];
+    case 'join': return [`${values[0]} + ${values[1]}`, '', true];
+
+    case 'letter_of': return [`${values[1]}[${values[0]}]`, '', true];
+    case 'length': return [`len(${values[0]})`, '', true];
+    case 'contains': return [`'${values[1]}' in ${values[0]}`, '', true];
+    case 'mod': return [`${values[0]} % ${values[1]}`, '', true];
+    case 'round': return [`round(${values[0]})`, '', true];
+    case 'mathop': return [`${values[1]}(${values[0]})`, '', true];
+        // variables
+    // case 'variable': return ['var(', ')'];
+    case 'setvariableto': return [`${values[0]} = ${values[1]}`, '', true];
+    case 'changevariableby': return [`${values[1]} ${values[0] > '0' ? '+=' : '-='} ${Math.abs(values[0])}`, '', true];
+    case 'showvariable': return ['showVariable(', ')'];
+    case 'hidevariable': return ['hideVariable(', ')'];
+    // case 'listcontents': return ['list(', ')'];
+    case 'addtolist': return [`${values[1]}.append(${values[0]})`, '', true];
+    case 'deleteoflist': return [`${values[1]}.pop(${values[0]})`, '', true];
+    case 'deletealloflist': return [`${values[0]}.clear()`, '', true];
+    case 'insertatlist': return [`${values[2]}.insert(${values[1]},${values[0]})`, '', true];
+    case 'replaceitemoflist': return [`${values[2]}[${values[0]}] = ${values[1]}`, '', true];
+    case 'itemoflist': return [`${values[1]}[${values[0]}]`, '', true];
+    case 'itemnumoflist': return [`${values[1]}.index(${values[0]})`, '', true];
+    case 'lengthoflist': return [`len(${values[0]})`, '', true];
+    case 'listcontainsitem': return [`${values[0]} in ${values[1]}`, '', true];
+    case 'showlist': return ['showList(', ')'];
+    case 'hidelist': return ['hideList(', ')'];
+
+        // my blocks
+
+        // other
+    case '...': return ['...', '...', true];
+    case 'break': return ['break', 'break', true];
+    case 'continue': return ['continue', '', true];
+        // default
+    default: return [`${inputStatement}${isValue ? '' : '('}`, `${isValue ? '' : ')'}`];
     }
 };
 
-const newVersionOfGCSFB = () => {
-    if (trees === null) return;
-    // eslint-disable-next-line no-console
-    console.log('..........................................................................');
-    // eslint-disable-next-line no-console
-    console.log('..........................................................................');
-    // eslint-disable-next-line no-console
-    console.log('PRINTING THE FINAL TREE:');
-    trees.updateAll();
+const findClosingBracketMatchIndex = (str, pos) => {
+    if (str[pos] !== '(') {
+        return -1;
+    }
+    let depth = 1;
+    for (let i = pos + 1; i < str.length; i++) {
+        switch (str[i]) {
+        case '(':
+            depth++;
+            break;
+        case ')':
+            if (--depth === 0) {
+                return i;
+            }
+            break;
+        }
+    }
+    return -1;
+};
+
+
+const parseValue = inputValue => {
+    if (inputValue === null || inputValue.length === 0) return [];
+    if (typeof inputValue === 'string') {
+        let bracketPos = 0;
+        bracketPos = inputValue.indexOf('(');
+        if (bracketPos >= 0) {
+            const command = inputValue.substring(0, bracketPos);
+            const closingBracketPos = findClosingBracketMatchIndex(inputValue, bracketPos);
+            const value = inputValue.substring(bracketPos + 1, closingBracketPos);
+            if (closingBracketPos <= bracketPos) {
+                return translateCode(command);
+            }
+            let splitValue;
+            const valueClosingBracketPos = findClosingBracketMatchIndex(value, value.indexOf('('));
+            if ((valueClosingBracketPos === (-1)) || (valueClosingBracketPos === (value.length - 1))) {
+                if (value.startsWith('contains')) {
+                    splitValue = [value.substring(value.indexOf('('), value.indexOf(',')), value.substring(value.indexOf(',') + 1)];
+                } else {
+                    splitValue = [value.substring(0, value.indexOf(',')), value.substring(value.indexOf(',') + 1)];
+                }
+            } else {
+                splitValue = [value.substring(0, value.indexOf(',', valueClosingBracketPos)), value.substring(value.indexOf(',', valueClosingBracketPos) + 1)];
+            }
+            if (splitValue.includes('undefined')) {
+                splitValue = [value.substring(0, value.indexOf(',')), value.substring(value.indexOf(',') + 1)];
+            }
+            splitValue = splitValue.filter(item => item !== '' && item !== []);
+            const transCode = translateCode(command, false, parseValue(splitValue));
+            if (transCode.length === 3) {
+                return `(${transCode[0]})`;
+            }
+            return `${transCode[0]}${parseValue(splitValue)}${transCode[1]}`;
+        }
+        return inputValue.substring(bracketPos, inputValue.length);
+    }
+    return inputValue.map(value => parseValue(value));
+};
+
+
+const toAscii = stringLetter => stringLetter.charCodeAt(0);
+
+const fromAscii = number => String.fromCharCode(number);
+
+const getCodeStringFromBlocks = () => {
+    if (trees === null) return <div> </div>;
+    if (trees.roots.length === 0) return <div> </div>;
+    trees.updateAllNodes();
     trees.checkRoots();
-    // eslint-disable-next-line no-console
-    console.log('roots ');
-    // eslint-disable-next-line no-console
-    console.log(trees.getRoots().map(x => x.id));
-    // eslint-disable-next-line no-console
-    console.log(trees);
-    // eslint-disable-next-line no-console
-    console.log('..........................................................................');
-    // eslint-disable-next-line no-console
-    console.log('..........................................................................');
-    // eslint-disable-next-line no-console
-    console.log(); console.log(); console.log();
+    console.log(`roots: ${trees.getRoots()}`);
 
+    if (trees.roots.length === 0) return <div> </div>;
     const output = [];
-    output.push(<div key={'import01'}>
-        {'import Beetle'}
-    </div>);
-    return output.concat(trees.getRoots().map(root => {
-        if (!root.opcode.startsWith('event')) return <div />;
-        // // const rootComponent = <div key={root.id}>{`${root.opcode}(${root.value})`}</div>;
-        // // console.log(rootComponent);
-
-        const nodes = [[root, 0]];
-        console.log('init nodes');
-        nodes.forEach(n => console.log(` -- ${n}`));
-        // output.push(<div
-        //     key={`${root.opcode}_${root.id}`}
-        //     style={{marginTop: `1ex`}}
-        // >{'\n'}</div>);
-        const outputComponents = [<div
+    imports = new Set(['Beetle']);
+    const outputCode = trees.getRoots().map(root => {
+        if (!root.opcode.startsWith('event') &&
+            !root.opcode.startsWith('procedure') &&
+            !root.opcode.includes('start_as_clone')) {
+            return <div>{null}</div>;
+        }
+        //           node, indent, counter
+        const nodes = [[root, 0, 0]];
+        const outputComponents = new Set([<div
             key={`${root.opcode}_${root.id}`}
             style={{marginTop: `1ex`}}
-        >{'\n'}</div>];
+        >{'\n'}</div>]);
         while (nodes.length !== 0) {
-            console.log('WHILE: nnode');
-            const [nnode, index] = nodes.pop();
+            const [nnode, indent, counter] = nodes.pop();
             if (nnode === null || typeof nnode === 'undefined' || nnode.length === 0) continue;
-            console.log(nnode.opcode, nnode);
-            // console.log('nodes');
-            // nodes.forEach(n => console.log(` -- ${n[0].id}`));
-            // console.log('length', nnode.length);
+            if (typeof nnode === 'string') {
+                outputComponents.add(<div
+                    key={nnode}
+                    style={{paddingLeft: `${indent}rem`}}
+                >{(nnode.startsWith('else') ||
+                    nnode.startsWith('...') ||
+                    nnode.startsWith('break') ||
+                    nnode.startsWith('continue')) ?
+                        translateCode(nnode.substring(0, nnode.indexOf(':')), true)[0] :
+                        translateCode(nnode, true)[0]}
+                </div>);
+                continue;
+            }
             if (typeof nnode.length !== 'undefined') {
-                console.log('----insideNode-----');
-                // const insideNodes = [];
                 Object.values(nnode).forEach(insideNode => {
-                    console.log(insideNode);
-                    nodes.push([insideNode, index]);
+                    nodes.push([insideNode, indent, counter]);
                 });
-                // nodes.push(insideNodes.reverse());no
             } else {
-                outputComponents.push(<div
-                // output.push(<div
-                    key={nnode.id}
-                    style={{paddingLeft: `${index}rem`}}
-                >{(translateCode(nnode.opcode.substring(nnode.opcode.indexOf('_') + 1)) === '' ?
-                        `${nnode.opcode.substring(nnode.opcode.indexOf('_') + 1)}(${(nnode.value === null) ? '' : nnode.value})` :
-                        `${translateCode(nnode.opcode.substring(nnode.opcode.indexOf('_') + 1))}(${(nnode.value === null) ? '' : nnode.value})`)}</div>);
-                //
-                // s každým reťazcom prejde slovník, ak tam nebude, tak vráti opcode (upravený)
-                //
-                // console.log('bod', 'length', nnode.length);
-                // console.log('new child', nnode.childNode);
-                if (nnode.opcode.startsWith('event')) {
-                    nodes.push([nnode.childNode, index + 1]);
+                if (nnode.opcode.includes('setvariable')) {
+                    if (!isNaN(Number(nnode.value[0]))) {
+                        nnode.value = [nnode.value[1], nnode.value[0]];
+                    }
+                }
+                const opcodeShort = nnode.opcode.substring(nnode.opcode.indexOf('_') + 1);
+                let translatedFunctionName = null;
+
+                if (opcodeShort === 'repeat') {
+                    translatedFunctionName = translateCode(opcodeShort, false, fromAscii(toAscii('i') + counter));
+                } else if (opcodeShort === 'repeat_until') {
+                    translatedFunctionName = translateCode('forever', false, fromAscii(toAscii('i') + indent));
                 } else {
-                    nodes.push([nnode.childNode, index]);
+                    translatedFunctionName = translateCode(opcodeShort, false, nnode.value);
+                }
+
+                const newValue = parseValue(nnode.value);
+                nnode.value = newValue;
+                outputComponents.add(<div
+                    key={nnode.id}
+                    style={{paddingLeft: `${indent}rem`}}
+                >{(translatedFunctionName.length === 3) ? (translatedFunctionName[0]) : ((translatedFunctionName[0] === '' ?
+                        `${opcodeShort}(${(nnode.value === null) ? '' : nnode.value}` :
+                        `${translatedFunctionName[0]}${(nnode.value === null) ||
+                        (opcodeShort.startsWith('setvariable')) ||
+                        (opcodeShort === 'repeat_until') ? '' : nnode.value}`) + translatedFunctionName[1])}</div>);
+
+                if ((nnode.opcode.startsWith('event') && !nnode.opcode.startsWith('event_broadcast')) || nnode.opcode.startsWith('control_start_as_clone')) {
+                    nodes.push([nnode.childNode, indent + 1, counter]);
+                } else {
+                    nodes.push([nnode.childNode, indent, counter]);
                 }
                 if (typeof nnode.body !== 'undefined') {
-                    // console.log('PUSHING');
-                    // console.log(nnode.body);
-                    console.log('-------');
-                    if (nnode.body.length > 0) {
-                        // console.log('new body child', nnode.body, reverseObj(nnode.body));
-                        nodes.push([nnode.body, index + 1]);
+                    if (nnode.body.length > 1) {
+                        if (opcodeShort === 'if_else') {
+                            nodes.push([nnode.body[1], indent + 1, counter]);
+                            nodes.push([`else:${nnode.id}`, indent, counter]);
+                            nodes.push([nnode.body[0], indent + 1, counter]);
+                        } else {
+                            nodes.push([nnode.body[0], (indent > 1) ? (indent - 2) : 0, counter]);
+                            nodes.push([nnode.body[1], indent + 1, (opcodeShort === 'repeat') ? (counter + 1) : counter]);
+                        }
+                    } else if (nnode.body.length > 0) {
+                        if (nnode.body[0].id === nnode.elseConditionPart) {
+                            nodes.push([`...:${nnode.id}`, indent + 1, counter]);
+                            nodes.push([`else:${nnode.id}`, indent, counter]);
+                            nodes.push([nnode.body[0], indent + 1, counter]);
+                        } else if (opcodeShort === 'repeat_until') {
+                            nodes.push([`break:${nnode.id}`, indent + 2, counter]);
+                            nodes.push([`if (${nnode.value}):`, indent + 1, counter]);
+                            nodes.push([nnode.body[0], indent + 1, counter]);
+                        } else {
+                            nodes.push([nnode.body[0], indent + 1, (opcodeShort === 'repeat') ? (counter + 1) : counter]);
+                        }
                     }
                 }
             }
         }
-
-        // let node = root;
-        // const outputComponents = [];
-        // while (node !== null) {
-        //     console.log('node');
-        //     console.log(node);
-        //     outputComponents.push(<div key={node.id}>{`${node.opcode}(${node.value})`}</div>);
-        //     // if (node.body.length > 0) nodes.push([nnode.body,index + 1]);
-        //     node = node.childNode;
-        // }
-        // console.log(outputComponents);
-        // return output;
         return outputComponents;
-    }));
-};
+    });
 
-const getCodeStringFromBlocks = () =>
-    newVersionOfGCSFB()
-    // return originalVersionOfGCSFB();
-;
-// const getCodeStringFromBlocks2 = (blockCode) => {
-//     const vysledok = blockCode.blocks;
-//     // eslint-disable-next-line no-console
-//     console.log('- -- --- ---- ----- ------ GETTING STRING FROM CODE');
-//     // eslint-disable-next-line no-console
-//     console.log(typeof vysledok);
-//     // eslint-disable-next-line no-console
-//     console.log(vysledok);
-//     // for (const [key, _] of codeFromBlocks) {
-//     //     vysledok += key;
-//     //     vysledok += '\n';
-//     // }
-//     return vysledok.map((i, key) => <div key={key}>{`\t       ${i}`}</div>);
-//     // return vysledok.join('<br><br>');
-// };
+    for (const imp of imports) {
+        output.push(<div key={`import${imp}`}>
+            {`import ${imp}`}
+        </div>);
+    }
+    const outputArray = [];
+    if (outputCode[0] instanceof Set) {
+        outputCode.forEach(itemSet => {
+            if (itemSet instanceof Set) {
+                itemSet.forEach(item => {
+                    const i = outputArray.findIndex(x => x.key === item.key);
+                    if (i <= -1) {
+                        outputArray.push(item);
+                    }
+                });
+            } else {
+                const i = outputArray.findIndex(x => x.key === itemSet.key);
+                if (i <= -1) {
+                    outputArray.push(itemSet);
+                }
+            }
+        });
+    } else {
+        outputCode.forEach(item => {
+            const i = outputArray.findIndex(x => x.key === item.key);
+            if (i <= -1) {
+                outputArray.push(item);
+            }
+        });
+    }
+    return output.concat(outputArray);
+};
 
 const SpriteSelectorComponent = function (props) {
     const {
@@ -250,27 +396,26 @@ const SpriteSelectorComponent = function (props) {
         stageSize,
         ...componentProps
     } = props;
-    // // eslint-disable-next-line no-console
-    // console.log(`Sprites:`);
-    // // eslint-disable-next-line no-console
-    // console.log(sprites);
-    // // eslint-disable-next-line no-console
-    // console.log(selectedId);
-    // let selectedSprite = sprites[selectedId];
-    // // eslint-disable-next-line no-console
-    // console.log(`Selected sprite`);
-    // // eslint-disable-next-line no-console
-    // console.log(selectedSprite);
-    // eslint-disable-next-line no-console
-    console.log('My sprite:');
-    // eslint-disable-next-line no-console
-    console.log(sprites[selectedId]);
+    let selectedSprite = sprites[selectedId];
 
-    // let spriteInfoDisabled = false;
-    // if (typeof selectedSprite === 'undefined') {
-    //     selectedSprite = {};
-    //     spriteInfoDisabled = true;
-    // }
+    let spriteInfoDisabled = false;
+    if (typeof selectedSprite === 'undefined') {
+        selectedSprite = {};
+        spriteInfoDisabled = true;
+    }
+    if (trees === null) {
+        return (<Box
+            className={styles.spriteSelector}
+            {...componentProps}
+        > </Box>);
+    }
+    if (trees.roots.filter(root => root.isRoot).length === 0) {
+        return (<Box
+            className={styles.spriteSelector}
+            {...componentProps}
+        > </Box>);
+    }
+
     return (
         <Box
             className={styles.spriteSelector}
@@ -296,15 +441,13 @@ const SpriteSelectorComponent = function (props) {
             {/*     onChangeY={onChangeSpriteY} */}
             {/* /> */}
 
-            <div>
-                {/* {globalVariable.translatedCode} */}
-                {/* {BLOCKCODE} */}
-                {
-                    getCodeStringFromBlocks()
-                    // getCodeStringFromBlocks2(sprites[selectedId])
-                }
-            </div>
-            {/* <div>aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</div> */}
+            {/* <div> */}
+            {/* {BLOCKCODE} */}
+            {
+                getCodeStringFromBlocks()
+            }
+            {/* </div> */}
+            {/* <div>test - aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</div> */}
 
 
             {/* <SpriteList */}
