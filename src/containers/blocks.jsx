@@ -50,6 +50,19 @@ const DroppableBlocks = DropAreaHOC([
 let rootBlocks = [];
 let allBlocks = [];
 
+const blockHasBody = inputOpcode => {
+    if (inputOpcode === null) return [false, 0];
+    switch (inputOpcode) {
+    case 'control_repeat': return [true, 1];
+    case 'control_forever': return [true, 1];
+    case 'control_if': return [true, 1];
+    case 'control_if_else': return [true, 2];
+    case 'control_else': return [true, 1];
+    case 'control_repeat_until': return [true, 1];
+    default: return [false, 0];
+    }
+};
+
 class BlockNode {
     constructor (id, name) {
         this.id = id;
@@ -61,7 +74,7 @@ class BlockNode {
         this.parentID = '';
         this.conditionIDs = [];
         this.elseConditionPart = false;
-        this.body = [];
+        this.body = []; // mohlo by sa vymenit za orderedSet
         this.isRoot = false;
     }
     toString () {
@@ -70,7 +83,6 @@ class BlockNode {
 }
 
 export let trees = null;
-
 
 class BlockTrees {
     constructor () {
@@ -126,25 +138,17 @@ class BlockTrees {
         if (parent.childID === node.id) {
             parent.childNode = node;
         } else {
-            const oldChild = parent.childNode;
-            if (oldChild === null || oldChild.id === node.id) return;
-            if (node.childNode === null) {
-                node.childNode = oldChild;
-                node.childID = oldChild.id;
-                parent.childNode = node;
-                parent.childID = node.id;
-            } else {
-                let someNode = node;
-                while (someNode.childNode !== null) {
-                    someNode = someNode.childNode;
+            if (parent.childID === null) {
+                if (blockHasBody(parent.opcode)[0]) {
+                    if (!parent.body.includes(node) && !parent.conditionIDs.includes(node.id)) {
+                        parent.body.push(node);
+                    }
+                } else if (!parent.conditionIDs.includes(node.id)) {
+                    parent.childID = node.id;
+                    parent.childNode = node;
                 }
-                someNode.childNode = oldChild;
-                someNode.childID = oldChild.id;
-                parent.childNode = node;
-                parent.childID = node.id;
             }
         }
-        this.size += 1;
         this.checkRoots();
     }
 
@@ -173,15 +177,19 @@ class BlockTrees {
             node.parentNode.childID !== node.id)) {
             if (node.parentNode.body.some(nnode => nnode.id === node.id)) return;
             if (node.parentNode.elseConditionPart === node.id) {
-                node.parentNode.body.push(node);
+                if (!node.parentNode.body.includes(node)) node.parentNode.body.push(node);
+                // node.parentNode.body.push(node);
             } else {
-                node.parentNode.body.unshift(node);
+                if (!node.parentNode.body.includes(node)) node.parentNode.body.unshift(node);
+                // node.parentNode.body.unshift(node);
             }
         }
     }
 
     updateAllNodes () {
-        allBlocks.forEach(node => {this.updateNode(node);});
+        allBlocks.forEach(node => {
+            this.updateNode(node);
+        });
     }
 
     checkRoots () {
@@ -333,18 +341,16 @@ class Blocks extends React.Component {
                                 } else {
                                     inputs.push(value.inputs[Object.keys(value.inputs)[j]][1][1].replace('_', ''));
                                 }
+                            } else if (inputs.length === 0 && (typeof value.inputs[Object.keys(value.inputs)[j]][1]) !== 'string') {
+                                inputs.push(null);
                             } else {
-                                if (inputs.length === 0 && (typeof value.inputs[Object.keys(value.inputs)[j]][1]) !== 'string') {
+                                if (!Object.keys(value.inputs)[j].toUpperCase().startsWith('SUBSTACK')) {
+                                    newBlock.conditionIDs.push(value.inputs[Object.keys(value.inputs)[j]][1]);
                                     inputs.push(null);
-                                } else {
-                                    if (!Object.keys(value.inputs)[j].toUpperCase().startsWith('SUBSTACK')) {
-                                        newBlock.conditionIDs.push(value.inputs[Object.keys(value.inputs)[j]][1]);
-                                        inputs.push(null);
-                                        addBlockToTree = false;
-                                    }
-                                    if (Object.keys(value.inputs)[j].toUpperCase() === 'SUBSTACK2') {
-                                        newBlock.elseConditionPart = value.inputs[Object.keys(value.inputs)[j]][1];
-                                    }
+                                    addBlockToTree = false;
+                                }
+                                if (Object.keys(value.inputs)[j].toUpperCase() === 'SUBSTACK2') {
+                                    newBlock.elseConditionPart = value.inputs[Object.keys(value.inputs)[j]][1];
                                 }
                             }
                         }
@@ -609,9 +615,12 @@ class Blocks extends React.Component {
     }
 
     onScriptGlowOn (data) {
+        console.log('onScriptGlowOn');
         this.workspace.glowStack(data.id, true);
     }
     onScriptGlowOff (data) {
+        console.log('onScriptGlowOff');
+        this.onBlockUpdate('');
         this.workspace.glowStack(data.id, false);
     }
     onBlockGlowOn (data) {

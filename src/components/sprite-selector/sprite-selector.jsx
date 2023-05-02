@@ -43,6 +43,10 @@ const messages = defineMessages({
 
 let imports = new Set(['Beetle']);
 
+// const translatedCommandsList = ['forward(', 'turnRight(', 'turnLeft(', 'goTo(', 'goToXY(', 'glideTo(', 'glideToXYinSeconds(', 'beetle.', 'changeYby(', 'changeXby(', 'print(', ''];
+// 'ifOnEdgeBounce(', 'setRotationStyle(', 'changeSizeBy(', 'show(', 'hide(', 'def ', 'broadcast(', 'broadcastAndWait(',
+//     'for ', 'while True', 'if (', 'else:', 'waitUntil(', 'createCloneOf(', 'deleteClone', 'isTouching',
+//     'distance(', 'askAndWait(', 'answer', 'isKeyPressed(', 'isMouseDown(', ''
 const translateCode = (inputStatement, isValue = false, values = []) => {
     if (inputStatement === null) return [`${inputStatement}${isValue ? '' : '('}`, `${isValue ? '' : ')'}`];
     switch (inputStatement) {
@@ -128,11 +132,46 @@ const translateCode = (inputStatement, isValue = false, values = []) => {
     case 'and': return [`${values[0]} and ${values[1]}`, '', true];
     case 'or': return [`${values[0]} or ${values[1]}`, '', true];
     case 'not': return [`not ${values}`, '', true];
-    case 'join': return [`${values[0]} + ${values[1]}`, '', true];
+    case 'join': {
+        let val0 = values[0];
+        let val1 = values[1];
+        if (!val0.includes('(') &&
+            !val0.includes('[') &&
+            !val0.includes(']') &&
+            !val0.includes(')')) {
+            val0 = `"${val0}"`;
+        }
+        if (!val1.includes('(') &&
+            !val1.includes('[') &&
+            !val1.includes(']') &&
+            !val1.includes(')')) {
+            val1 = `"${val1}"`;
+        }
+        return [`${val0} + ${val1}`, '', true];
+    }
 
-    case 'letter_of': return [`${values[1]}[${values[0]}]`, '', true];
-    case 'length': return [`len(${values[0]})`, '', true];
-    case 'contains': return [`'${values[1]}' in ${values[0]}`, '', true];
+    case 'letter_of': {
+        let val1 = values[1];
+        if (!val1.includes('(') &&
+            !val1.includes('[') &&
+            !val1.includes(']') &&
+            !val1.includes(')')) {
+            val1 = `"${val1}"`;
+        }
+        return [`${val1}[${values[0]}]`, '', false];
+        // return [`${values[1]}[${values[0]}]`, '', true];
+    }
+    case 'length': {
+        let val = values;
+        if (!values.includes('(') &&
+            !values.includes('[') &&
+            !values.includes(']') &&
+            !values.includes(')')) {
+            val = `"${values}"`;
+        }
+        return [`len(${val})`, '', true];
+    }
+    case 'contains': return [`${values[1]} in ${values[0]}`, '', true];
     case 'mod': return [`${values[0]} % ${values[1]}`, '', true];
     case 'round': return [`round(${values[0]})`, '', true];
     case 'mathop': return [`${values[1]}(${values[0]})`, '', true];
@@ -186,37 +225,111 @@ const findClosingBracketMatchIndex = (str, pos) => {
     return -1;
 };
 
+const findCommaIndex = inputString => {
+    let pointer = 0;
+    let bracketCounter = 0;
+    for (let i = 0; i < inputString.length; i++) {
+        if (inputString[i] === '(') {
+            bracketCounter++;
+        }
+        if (inputString[i] === ')') {
+            bracketCounter--;
+        }
+        if (inputString[i] !== '(' && inputString[i] !== ')') {
+            // console.log('non bracket:', inputString[i], bracketCounter);
+            if (inputString[i] === ',' && (bracketCounter === 0)) {
+                return pointer;
+            }
+        }
+        pointer++;
+        // const a = toAscii(inputString[i].toLowerCase());
+        // if (((47 < a && a < 58) || (96 < a && a < 123)) || a === 32) {
+        //
+        // }
+    }
+    return -1;
+};
+
+// const canSplitCommand = inputCommand => {
+//     switch (inputCommand){
+//     case ('len'): ;
+//     default: return false;
+//     }
+// }
+
+const isParsed = inputString => {
+    if (inputString === null || inputString.length === 0) return false;
+    return inputString.includes('def');
+};
 
 const parseValue = inputValue => {
+    console.log('calue parser');
+    console.log(inputValue);
     if (inputValue === null || inputValue.length === 0) return [];
     if (typeof inputValue === 'string') {
+        if (!(inputValue.includes('(') || inputValue.includes(')') || inputValue.includes(','))) {
+            return inputValue;
+        }
         let bracketPos = 0;
         bracketPos = inputValue.indexOf('(');
         if (bracketPos >= 0) {
             const command = inputValue.substring(0, bracketPos);
             const closingBracketPos = findClosingBracketMatchIndex(inputValue, bracketPos);
-            const value = inputValue.substring(bracketPos + 1, closingBracketPos);
+            const value = inputValue.substring(bracketPos + 1, closingBracketPos).replaceAll(' ', '');
             if (closingBracketPos <= bracketPos) {
                 return translateCode(command);
             }
+            console.log(`${command}: ${value}`);
             let splitValue;
             const valueClosingBracketPos = findClosingBracketMatchIndex(value, value.indexOf('('));
             if ((valueClosingBracketPos === (-1)) || (valueClosingBracketPos === (value.length - 1))) {
-                if (value.startsWith('contains')) {
-                    splitValue = [value.substring(value.indexOf('('), value.indexOf(',')), value.substring(value.indexOf(',') + 1)];
+                // console.log('find comma index in', value.substring(value.indexOf('(') + 1));
+                // console.log(findCommaIndex(value.substring(value.indexOf('(') + 1)));
+                // console.log(`char at ^: ${value.substring(value.indexOf('(') + 1)[findCommaIndex(value.substring(value.indexOf('(') + 1))]}`);
+                if (value.indexOf('(') > -1) {
+                    // console.log('here');
+                    if ((value.indexOf(',') > value.indexOf('('))) {
+                        // console.log('tu');
+                        splitValue = [value];
+                    } else {
+                        // console.log('tam');
+                        splitValue = [value.substring(0, value.indexOf(',')), value.substring(value.indexOf(',') + 1)];
+                        // const comma = (value.substring(0, value.indexOf('(') + 1)).length + findCommaIndex(value.substring(value.indexOf('(') + 1));
+                        // const firstValue = value.substring(value.indexOf('(') + 1, comma);
+                        // const secondPart = value.substring(comma + 1);
+                        // splitValue = [firstValue, secondPart.substring(0, (valueClosingBracketPos === (-1)) ? secondPart.length : secondPart.length - 1)];
+                        // // splitValue = [value.substring(0, comma), value.substring(comma + 1)];
+                    }
                 } else {
+                    // console.log('or here');
                     splitValue = [value.substring(0, value.indexOf(',')), value.substring(value.indexOf(',') + 1)];
                 }
+                // if (value.startsWith('contains') || value.startsWith('join')) {
+                //     const firstValue = value.substring(value.indexOf('(') + 1, value.indexOf(','));
+                //     const secondPart = value.substring(value.indexOf(',') + 1);
+                //     splitValue = [firstValue, secondPart.substring(0, (valueClosingBracketPos === (-1)) ? secondPart.length : secondPart.length - 1)];
+                // } else {
+                //     splitValue = [value.substring(0, value.indexOf(',')), value.substring(value.indexOf(',') + 1)];
+                // }
             } else {
                 splitValue = [value.substring(0, value.indexOf(',', valueClosingBracketPos)), value.substring(value.indexOf(',', valueClosingBracketPos) + 1)];
             }
+            // console.log(splitValue);
             if (splitValue.includes('undefined')) {
                 splitValue = [value.substring(0, value.indexOf(',')), value.substring(value.indexOf(',') + 1)];
             }
+            splitValue = splitValue.filter(item => item.length !== 0);
+            // console.log('new', splitValue);
             splitValue = splitValue.filter(item => item !== '' && item !== []);
             const transCode = translateCode(command, false, parseValue(splitValue));
+
+            // console.log('translation:');
+            // console.log(transCode);
             if (transCode.length === 3) {
-                return `(${transCode[0]})`;
+                if (transCode[2]) {
+                    return `(${transCode[0]})`;
+                }
+                return `${transCode[0]}`;
             }
             return `${transCode[0]}${parseValue(splitValue)}${transCode[1]}`;
         }
@@ -236,17 +349,17 @@ const getCodeStringFromBlocks = () => {
     trees.updateAllNodes();
     trees.checkRoots();
     console.log(`roots: ${trees.getRoots()}`);
-
     if (trees.roots.length === 0) return <div> </div>;
     const output = [];
     imports = new Set(['Beetle']);
     const outputCode = trees.getRoots().map(root => {
-        if (!root.opcode.startsWith('event') &&
+        if ((!root.opcode.startsWith('event') || root.opcode.startsWith('event_broadcast')) &&
             !root.opcode.startsWith('procedure') &&
             !root.opcode.includes('start_as_clone')) {
             return <div>{null}</div>;
         }
         //           node, indent, counter
+        let valuesParsed = false;
         const nodes = [[root, 0, 0]];
         const outputComponents = new Set([<div
             key={`${root.opcode}_${root.id}`}
@@ -254,6 +367,8 @@ const getCodeStringFromBlocks = () => {
         >{'\n'}</div>]);
         while (nodes.length !== 0) {
             const [nnode, indent, counter] = nodes.pop();
+            console.log('node');
+            console.log(nnode);
             if (nnode === null || typeof nnode === 'undefined' || nnode.length === 0) continue;
             if (typeof nnode === 'string') {
                 outputComponents.add(<div
@@ -284,13 +399,19 @@ const getCodeStringFromBlocks = () => {
                 if (opcodeShort === 'repeat') {
                     translatedFunctionName = translateCode(opcodeShort, false, fromAscii(toAscii('i') + counter));
                 } else if (opcodeShort === 'repeat_until') {
-                    translatedFunctionName = translateCode('forever', false, fromAscii(toAscii('i') + indent));
+                    translatedFunctionName = translateCode('forever', false);
                 } else {
                     translatedFunctionName = translateCode(opcodeShort, false, nnode.value);
                 }
-
-                const newValue = parseValue(nnode.value);
-                nnode.value = newValue;
+                if (!valuesParsed) {
+                    console.log('parsed');
+                    console.log(valuesParsed);
+                    if (isParsed(nnode.value)) {
+                        valuesParsed = true;
+                    }
+                    const newValue = parseValue(nnode.value);
+                    nnode.value = newValue;
+                }
                 outputComponents.add(<div
                     key={nnode.id}
                     style={{paddingLeft: `${indent}rem`}}
@@ -301,32 +422,43 @@ const getCodeStringFromBlocks = () => {
                         (opcodeShort === 'repeat_until') ? '' : nnode.value}`) + translatedFunctionName[1])}</div>);
 
                 if ((nnode.opcode.startsWith('event') && !nnode.opcode.startsWith('event_broadcast')) || nnode.opcode.startsWith('control_start_as_clone')) {
+                    // console.log('indent -1');
                     nodes.push([nnode.childNode, indent + 1, counter]);
                 } else {
+                    // console.log('indent 0', nnode.id, nnode.childNode, indent);
                     nodes.push([nnode.childNode, indent, counter]);
                 }
+                // console.log(indent, nnode.body);
                 if (typeof nnode.body !== 'undefined') {
                     if (nnode.body.length > 1) {
                         if (opcodeShort === 'if_else') {
+                            // console.log('indent 1');
                             nodes.push([nnode.body[1], indent + 1, counter]);
                             nodes.push([`else:${nnode.id}`, indent, counter]);
                             nodes.push([nnode.body[0], indent + 1, counter]);
                         } else {
+                            // console.log('indent 2');
                             nodes.push([nnode.body[0], (indent > 1) ? (indent - 2) : 0, counter]);
-                            nodes.push([nnode.body[1], indent + 1, (opcodeShort === 'repeat') ? (counter + 1) : counter]);
+                            nodes.push([nnode.body[1], indent + 1, counter]);
                         }
                     } else if (nnode.body.length > 0) {
+                        // console.log('indent 3');
                         if (nnode.body[0].id === nnode.elseConditionPart) {
+                            // console.log('indent 4');
                             nodes.push([`...:${nnode.id}`, indent + 1, counter]);
                             nodes.push([`else:${nnode.id}`, indent, counter]);
                             nodes.push([nnode.body[0], indent + 1, counter]);
                         } else if (opcodeShort === 'repeat_until') {
+                            // console.log('indent 5');
                             nodes.push([`break:${nnode.id}`, indent + 2, counter]);
                             nodes.push([`if (${nnode.value}):`, indent + 1, counter]);
                             nodes.push([nnode.body[0], indent + 1, counter]);
                         } else {
+                            // console.log('indent 6');
                             nodes.push([nnode.body[0], indent + 1, (opcodeShort === 'repeat') ? (counter + 1) : counter]);
                         }
+                    } else {
+                        // console.log('indent 7');
                     }
                 }
             }
@@ -444,6 +576,7 @@ const SpriteSelectorComponent = function (props) {
             {/* <div> */}
             {/* {BLOCKCODE} */}
             {
+
                 getCodeStringFromBlocks()
             }
             {/* </div> */}
