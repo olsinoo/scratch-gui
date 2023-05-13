@@ -58,7 +58,7 @@ git clone https://github.com/olsinoo/scratch-gui.git --depth=1
 cd scratch-gui
 npm install
 ```
-3. Stiahnite si .zip zdrojového kódu zo [stránky](https://github.com/olsinoo/scratch-gui). Stiahnutý súbor rozzipujte.
+3. Stiahnite si [.zip zdrojového kódu](https://github.com/olsinoo/scratch-gui/archive/refs/heads/develop.zip). Stiahnutý súbor rozzipujte.
 4. Z rozzipovaného scratch-gui budeme potrebovať adresáre:
 * src/components
 * src/containers
