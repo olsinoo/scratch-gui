@@ -76,4 +76,4 @@ cd ../scratch-gui
 npm link scratch-vm
 cd..
 ```
-8. Projekt sa spúšťa z adresára `scratch-gui` použitím príkazu `npm start` (sekcia: [Spustenie lokálneho servera](#spustenie-loklneho-servera)).
+8. Projekt sa spúšťa z adresára `scratch-gui` použitím príkazu `npm start` (sekcia: [Spustenie lokálneho servera](#spustenie-lokálneho-servera)).
