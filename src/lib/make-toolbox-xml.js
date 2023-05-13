@@ -55,34 +55,34 @@ const motion = function (isInitialSetup, isStage, targetId) {
                 </shadow>
             </value>
         </block>
-        <block type="motion_glideto" id="motion_glideto">
-            <value name="SECS">
-                <shadow type="math_number">
-                    <field name="NUM">1</field>
-                </shadow>
-            </value>
-            <value name="TO">
-                <shadow type="motion_glideto_menu">
-                </shadow>
-            </value>
-        </block>
-        <block type="motion_glidesecstoxy">
-            <value name="SECS">
-                <shadow type="math_number">
-                    <field name="NUM">1</field>
-                </shadow>
-            </value>
-            <value name="X">
-                <shadow id="glidex" type="math_number">
-                    <field name="NUM">0</field>
-                </shadow>
-            </value>
-            <value name="Y">
-                <shadow id="glidey" type="math_number">
-                    <field name="NUM">0</field>
-                </shadow>
-            </value>
-        </block>
+<!--        <block type="motion_glideto" id="motion_glideto">-->
+<!--            <value name="SECS">-->
+<!--                <shadow type="math_number">-->
+<!--                    <field name="NUM">1</field>-->
+<!--                </shadow>-->
+<!--            </value>-->
+<!--            <value name="TO">-->
+<!--                <shadow type="motion_glideto_menu">-->
+<!--                </shadow>-->
+<!--            </value>-->
+<!--        </block>-->
+<!--        <block type="motion_glidesecstoxy">-->
+<!--            <value name="SECS">-->
+<!--                <shadow type="math_number">-->
+<!--                    <field name="NUM">1</field>-->
+<!--                </shadow>-->
+<!--            </value>-->
+<!--            <value name="X">-->
+<!--                <shadow id="glidex" type="math_number">-->
+<!--                    <field name="NUM">0</field>-->
+<!--                </shadow>-->
+<!--            </value>-->
+<!--            <value name="Y">-->
+<!--                <shadow id="glidey" type="math_number">-->
+<!--                    <field name="NUM">0</field>-->
+<!--                </shadow>-->
+<!--            </value>-->
+<!--        </block>-->
         ${blockSeparator}
         <block type="motion_pointindirection">
             <value name="DIRECTION">
@@ -672,13 +672,13 @@ const operators = function (isInitialSetup) {
                 </shadow>
             </value>
         </block>
-        <block type="operator_round">
-            <value name="NUM">
-                <shadow type="math_number">
-                    <field name="NUM"/>
-                </shadow>
-            </value>
-        </block>
+<!--        <block type="operator_round">-->
+<!--            <value name="NUM">-->
+<!--                <shadow type="math_number">-->
+<!--                    <field name="NUM"/>-->
+<!--                </shadow>-->
+<!--            </value>-->
+<!--        </block>-->
         ${blockSeparator}
         <block type="operator_mathop">
             <value name="NUM">
@@ -765,7 +765,7 @@ const makeToolboxXML = function (isInitialSetup, isStage = true, targetId, categ
     const sensingXML = moveCategory('sensing') || sensing(isInitialSetup, isStage, targetId);
     const operatorsXML = moveCategory('operators') || operators(isInitialSetup, isStage, targetId);
     const variablesXML = moveCategory('data') || variables(isInitialSetup, isStage, targetId);
-    const myBlocksXML = moveCategory('procedures') || myBlocks(isInitialSetup, isStage, targetId);
+    // const myBlocksXML = moveCategory('procedures') || myBlocks(isInitialSetup, isStage, targetId);
     // const penXML = moveCategory('pen') || myBlocks(isInitialSetup, isStage, targetId);
 
     const everything = [
@@ -777,8 +777,8 @@ const makeToolboxXML = function (isInitialSetup, isStage = true, targetId, categ
         controlXML, gap,
         sensingXML, gap,
         operatorsXML, gap,
-        variablesXML, gap,
-        myBlocksXML
+        variablesXML // , gap,
+        // myBlocksXML
     ];
 
     for (const extensionCategory of categoriesXML) {

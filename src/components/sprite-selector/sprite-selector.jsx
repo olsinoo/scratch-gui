@@ -43,10 +43,11 @@ const messages = defineMessages({
 
 let imports = new Set(['Beetle']);
 
-// const translatedCommandsList = ['forward(', 'turnRight(', 'turnLeft(', 'goTo(', 'goToXY(', 'glideTo(', 'glideToXYinSeconds(', 'beetle.', 'changeYby(', 'changeXby(', 'print(', ''];
+// const translatedCommandsList = ['forward(', 'turnRight(', 'turnLeft(', 'goTo(', 'goToXY(', 'glideTo(',
+// 'glideToXYinSeconds(', 'beetle.', 'changeYby(', 'changeXby(', 'print(', ''];
 // 'ifOnEdgeBounce(', 'setRotationStyle(', 'changeSizeBy(', 'show(', 'hide(', 'def ', 'broadcast(', 'broadcastAndWait(',
 //     'for ', 'while True', 'if (', 'else:', 'waitUntil(', 'createCloneOf(', 'deleteClone', 'isTouching',
-//     'distance(', 'askAndWait(', 'answer', 'isKeyPressed(', 'isMouseDown(', ''
+//     'distance(', 'askAndWait(', 'answer', 'isKeyPressed(', 'isMouseDown(', ''...
 const translateCode = (inputStatement, isValue = false, values = []) => {
     if (inputStatement === null) return [`${inputStatement}${isValue ? '' : '('}`, `${isValue ? '' : ')'}`];
     switch (inputStatement) {
@@ -173,7 +174,7 @@ const translateCode = (inputStatement, isValue = false, values = []) => {
     }
     case 'contains': return [`${values[1]} in ${values[0]}`, '', true];
     case 'mod': return [`${values[0]} % ${values[1]}`, '', true];
-    case 'round': return [`round(${values[0]})`, '', true];
+    case 'round': return [`round(${values[0].replaceAll('(', '').replaceAll(')', '')})`, '', true];
     case 'mathop': return [`${values[1]}(${values[0]})`, '', true];
         // variables
     // case 'variable': return ['var(', ')'];
@@ -242,20 +243,9 @@ const findCommaIndex = inputString => {
             }
         }
         pointer++;
-        // const a = toAscii(inputString[i].toLowerCase());
-        // if (((47 < a && a < 58) || (96 < a && a < 123)) || a === 32) {
-        //
-        // }
     }
     return -1;
 };
-
-// const canSplitCommand = inputCommand => {
-//     switch (inputCommand){
-//     case ('len'): ;
-//     default: return false;
-//     }
-// }
 
 const isParsed = inputString => {
     if (inputString === null || inputString.length === 0) return false;
@@ -263,8 +253,6 @@ const isParsed = inputString => {
 };
 
 const parseValue = inputValue => {
-    console.log('calue parser');
-    console.log(inputValue);
     if (inputValue === null || inputValue.length === 0) return [];
     if (typeof inputValue === 'string') {
         if (!(inputValue.includes('(') || inputValue.includes(')') || inputValue.includes(','))) {
@@ -279,7 +267,7 @@ const parseValue = inputValue => {
             if (closingBracketPos <= bracketPos) {
                 return translateCode(command);
             }
-            console.log(`${command}: ${value}`);
+            // console.log(`${command}: ${value}`);
             let splitValue;
             const valueClosingBracketPos = findClosingBracketMatchIndex(value, value.indexOf('('));
             if ((valueClosingBracketPos === (-1)) || (valueClosingBracketPos === (value.length - 1))) {
@@ -287,12 +275,9 @@ const parseValue = inputValue => {
                 // console.log(findCommaIndex(value.substring(value.indexOf('(') + 1)));
                 // console.log(`char at ^: ${value.substring(value.indexOf('(') + 1)[findCommaIndex(value.substring(value.indexOf('(') + 1))]}`);
                 if (value.indexOf('(') > -1) {
-                    // console.log('here');
                     if ((value.indexOf(',') > value.indexOf('('))) {
-                        // console.log('tu');
                         splitValue = [value];
                     } else {
-                        // console.log('tam');
                         splitValue = [value.substring(0, value.indexOf(',')), value.substring(value.indexOf(',') + 1)];
                         // const comma = (value.substring(0, value.indexOf('(') + 1)).length + findCommaIndex(value.substring(value.indexOf('(') + 1));
                         // const firstValue = value.substring(value.indexOf('(') + 1, comma);
@@ -301,7 +286,6 @@ const parseValue = inputValue => {
                         // // splitValue = [value.substring(0, comma), value.substring(comma + 1)];
                     }
                 } else {
-                    // console.log('or here');
                     splitValue = [value.substring(0, value.indexOf(',')), value.substring(value.indexOf(',') + 1)];
                 }
                 // if (value.startsWith('contains') || value.startsWith('join')) {
@@ -358,7 +342,6 @@ const getCodeStringFromBlocks = () => {
             !root.opcode.includes('start_as_clone')) {
             return <div>{null}</div>;
         }
-        //           node, indent, counter
         let valuesParsed = false;
         const nodes = [[root, 0, 0]];
         const outputComponents = new Set([<div
@@ -367,8 +350,8 @@ const getCodeStringFromBlocks = () => {
         >{'\n'}</div>]);
         while (nodes.length !== 0) {
             const [nnode, indent, counter] = nodes.pop();
-            console.log('node');
-            console.log(nnode);
+            // console.log('node');
+            // console.log(nnode);
             if (nnode === null || typeof nnode === 'undefined' || nnode.length === 0) continue;
             if (typeof nnode === 'string') {
                 outputComponents.add(<div
@@ -404,8 +387,6 @@ const getCodeStringFromBlocks = () => {
                     translatedFunctionName = translateCode(opcodeShort, false, nnode.value);
                 }
                 if (!valuesParsed) {
-                    console.log('parsed');
-                    console.log(valuesParsed);
                     if (isParsed(nnode.value)) {
                         valuesParsed = true;
                     }
@@ -422,43 +403,34 @@ const getCodeStringFromBlocks = () => {
                         (opcodeShort === 'repeat_until') ? '' : nnode.value}`) + translatedFunctionName[1])}</div>);
 
                 if ((nnode.opcode.startsWith('event') && !nnode.opcode.startsWith('event_broadcast')) || nnode.opcode.startsWith('control_start_as_clone')) {
-                    // console.log('indent -1');
                     nodes.push([nnode.childNode, indent + 1, counter]);
                 } else {
-                    // console.log('indent 0', nnode.id, nnode.childNode, indent);
                     nodes.push([nnode.childNode, indent, counter]);
                 }
                 // console.log(indent, nnode.body);
                 if (typeof nnode.body !== 'undefined') {
                     if (nnode.body.length > 1) {
                         if (opcodeShort === 'if_else') {
-                            // console.log('indent 1');
                             nodes.push([nnode.body[1], indent + 1, counter]);
                             nodes.push([`else:${nnode.id}`, indent, counter]);
                             nodes.push([nnode.body[0], indent + 1, counter]);
                         } else {
-                            // console.log('indent 2');
                             nodes.push([nnode.body[0], (indent > 1) ? (indent - 2) : 0, counter]);
                             nodes.push([nnode.body[1], indent + 1, counter]);
                         }
                     } else if (nnode.body.length > 0) {
-                        // console.log('indent 3');
                         if (nnode.body[0].id === nnode.elseConditionPart) {
-                            // console.log('indent 4');
                             nodes.push([`...:${nnode.id}`, indent + 1, counter]);
                             nodes.push([`else:${nnode.id}`, indent, counter]);
                             nodes.push([nnode.body[0], indent + 1, counter]);
                         } else if (opcodeShort === 'repeat_until') {
-                            // console.log('indent 5');
                             nodes.push([`break:${nnode.id}`, indent + 2, counter]);
                             nodes.push([`if (${nnode.value}):`, indent + 1, counter]);
                             nodes.push([nnode.body[0], indent + 1, counter]);
                         } else {
-                            // console.log('indent 6');
                             nodes.push([nnode.body[0], indent + 1, (opcodeShort === 'repeat') ? (counter + 1) : counter]);
                         }
                     } else {
-                        // console.log('indent 7');
                     }
                 }
             }

@@ -521,6 +521,7 @@ class Blocks extends React.Component {
     }
 
     withToolboxUpdates (fn) {
+        // update blocks
         // if there is a queued toolbox update, we need to wait
         if (this.toolboxUpdateTimeout) {
             this.toolboxUpdateQueue.push(fn);
@@ -568,6 +569,7 @@ class Blocks extends React.Component {
     }
 
     updateToolboxBlockValue (id, value) {
+        // update blocks
         this.withToolboxUpdates(() => {
             const block = this.workspace
                 .getFlyout()
@@ -580,12 +582,15 @@ class Blocks extends React.Component {
     }
 
     onTargetsUpdate () {
-        if (this.props.vm.editingTarget && this.workspace.getFlyout()) {
-            ['glide', 'move', 'set'].forEach(prefix => {
-                this.updateToolboxBlockValue(`${prefix}x`, Math.round(this.props.vm.editingTarget.x).toString());
-                this.updateToolboxBlockValue(`${prefix}y`, Math.round(this.props.vm.editingTarget.y).toString());
-            });
-        }
+        this.onBlockUpdate('');
+        setTimeout(() => {
+            if (this.props.vm.editingTarget && this.workspace.getFlyout()) {
+                ['glide', 'move', 'set'].forEach(prefix => {
+                    this.updateToolboxBlockValue(`${prefix}x`, Math.round(this.props.vm.editingTarget.x).toString());
+                    this.updateToolboxBlockValue(`${prefix}y`, Math.round(this.props.vm.editingTarget.y).toString());
+                });
+            }
+        }, 500);
     }
     onWorkspaceMetricsChange () { // DETECTS CHANGES IN SIZE/WIDTH OF BLOCKS
         const target = this.props.vm.editingTarget;
@@ -616,11 +621,11 @@ class Blocks extends React.Component {
 
     onScriptGlowOn (data) {
         console.log('onScriptGlowOn');
+        this.onBlockUpdate('');
         this.workspace.glowStack(data.id, true);
     }
     onScriptGlowOff (data) {
         console.log('onScriptGlowOff');
-        this.onBlockUpdate('');
         this.workspace.glowStack(data.id, false);
     }
     onBlockGlowOn (data) {
