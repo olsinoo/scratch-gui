@@ -49,6 +49,9 @@ const DroppableBlocks = DropAreaHOC([
 
 let rootBlocks = [];
 let allBlocks = [];
+let currentJSONObject = null;
+let currentParsedJSONObject = null;
+// let lastParsedObject = null;
 
 const blockHasBody = inputOpcode => {
     if (inputOpcode === null) return [false, 0];
@@ -74,11 +77,13 @@ class BlockNode {
         this.parentID = '';
         this.conditionIDs = [];
         this.elseConditionPart = false;
-        this.body = []; // mohlo by sa vymenit za orderedSet
+        this.body = []; // COMMENT: mohlo by sa vymenit za orderedSet
         this.isRoot = false;
     }
     toString () {
-        return `${this.id}\n---> ${this.opcode}\n---> child: ${this.childNode === null ? this.childID : this.childNode.id}\n---> parent: ${this.parentNode === null ? this.parentID : this.parentNode.id}`;
+        return `${this.id}\n---> ${this.opcode}
+                  \n---> child: ${this.childNode === null ? this.childID : this.childNode.id}
+                  \n---> parent: ${this.parentNode === null ? this.parentID : this.parentNode.id}`;
     }
 }
 
@@ -106,7 +111,7 @@ class BlockTrees {
     }
 
     findNodeInSubtree (treeID, nodeID) {
-        // find node
+        // COMMENT: find node
         for (const rootNode in this.findNodeByID(treeID)) {
             let currentNode = rootNode;
             while (currentNode) {
@@ -137,16 +142,14 @@ class BlockTrees {
         const parent = node.parentNode;
         if (parent.childID === node.id) {
             parent.childNode = node;
-        } else {
-            if (parent.childID === null) {
-                if (blockHasBody(parent.opcode)[0]) {
-                    if (!parent.body.includes(node) && !parent.conditionIDs.includes(node.id)) {
-                        parent.body.push(node);
-                    }
-                } else if (!parent.conditionIDs.includes(node.id)) {
-                    parent.childID = node.id;
-                    parent.childNode = node;
+        } else if (parent.childID === null) {
+            if (blockHasBody(parent.opcode)[0]) {
+                if (!parent.body.includes(node) && !parent.conditionIDs.includes(node.id)) {
+                    parent.body.push(node);
                 }
+            } else if (!parent.conditionIDs.includes(node.id)) {
+                parent.childID = node.id;
+                parent.childNode = node;
             }
         }
         this.checkRoots();
@@ -198,6 +201,152 @@ class BlockTrees {
     }
 }
 
+export const parseJsonObject = json => {
+    let obj;
+    if (json === null) {
+        // obj = currentJSONObject;
+        // trees = currentParsedJSONObject;
+        return;
+    }
+    obj = json;
+
+    if (obj === null) return;
+    for (let i = 0; i < obj.targets.length; i++) {
+        // eslint-disable-next-line no-console
+        console.log(`BLOCKS from ${obj.targets[i].name}`);
+        // eslint-disable-next-line no-console
+        console.log(Object.entries(obj.targets[i].blocks));
+        // eslint-disable-next-line no-console
+        console.log('-----------------------------------------------------------');
+        if (!obj.targets[i].isStage) {
+            allBlocks = [];
+            if (trees === null) {
+                trees = new BlockTrees();
+            }
+            if (currentParsedJSONObject !== null) currentParsedJSONObject.roots = [];
+            trees.roots = [];
+            for (const [key, value] of Object.entries(obj.targets[i].blocks)) {
+                let addBlockToTree = true;
+                const newBlock = new BlockNode(key, value.opcode);
+                const noOfInputs = 'inputs' in value ? Object.keys(value.inputs).length : 0;
+                const noOfFields = 'fields' in value ? Object.keys(value.fields).length : 0;
+                if (noOfInputs === 0 && noOfFields === 0) {
+                    // eslint-disable-next-line no-console
+                    console.log(`//////////////// NO INPUTS NOR FIELDS ////////////////`);
+                } else if (noOfInputs === 0) {
+                    // eslint-disable-next-line no-console
+                    console.log(`//////////////// NO INPUTS ////////////////`);
+                    newBlock.value = value.fields[Object.keys(value.fields)[0]][0];
+                    const fields = [];
+                    for (let j = 0; j < noOfFields; j++) {
+                        if (value.fields[Object.keys(value.fields)[j]].constructor === Array) {
+                            fields.push(value.fields[Object.keys(value.fields)[j]][0].replace('_', ''));
+                        } else {
+                            fields.push(null);
+                        }
+                    }
+                    newBlock.value = fields;
+                } else if (noOfFields === 0) {
+                    // eslint-disable-next-line no-console
+                    console.log(`//////////////// NO FIELDS ////////////////`);
+                    const inputs = [];
+                    for (let j = 0; j < noOfInputs; j++) {
+                        if (value.inputs[Object.keys(value.inputs)[j]][1] !== null &&
+                            value.inputs[Object.keys(value.inputs)[j]][1].constructor === Array) {
+                            if (Object.keys(value.inputs)[j].toUpperCase() === 'MESSAGE') {
+                                inputs.push(`"${value.inputs[Object.keys(value.inputs)[j]][1][1].replace('_', '')}"`);
+                            } else {
+                                inputs.push(value.inputs[Object.keys(value.inputs)[j]][1][1].replace('_', ''));
+                            }
+                        } else if (inputs.length === 0 &&
+                            (typeof value.inputs[Object.keys(value.inputs)[j]][1]) !== 'string') {
+                            inputs.push(null);
+                        } else {
+                            if (!Object.keys(value.inputs)[j].toUpperCase().startsWith('SUBSTACK')) {
+                                newBlock.conditionIDs.push(value.inputs[Object.keys(value.inputs)[j]][1]);
+                                inputs.push(null);
+                                addBlockToTree = false;
+                            }
+                            if (Object.keys(value.inputs)[j].toUpperCase() === 'SUBSTACK2') {
+                                newBlock.elseConditionPart = value.inputs[Object.keys(value.inputs)[j]][1];
+                            }
+                        }
+                    }
+                    newBlock.value = inputs;
+                } else {
+                    // eslint-disable-next-line no-console
+                    console.log(`//////////////// INPUTS AND FIELDS ////////////////`);
+                    const inputFields = [];
+                    for (let j = 0; j < noOfInputs; j++) {
+                        if (value.inputs[Object.keys(value.inputs)[j]][1].constructor === Array) {
+                            inputFields.push(value.inputs[Object.keys(value.inputs)[j]][1][1]);
+                        } else {
+                            inputFields.push(null);
+                        }
+                    }
+                    for (let j = 0; j < noOfFields; j++) {
+                        if (value.fields[Object.keys(value.fields)[j]].constructor === Array) {
+                            inputFields.push(value.fields[Object.keys(value.fields)[j]][0]);
+                        } else {
+                            inputFields.push(null);
+                        }
+                    }
+                    newBlock.value = inputFields;
+                }
+
+                if ('mutation' in value) {
+                    if ('proccode' in value.mutation) {
+                        newBlock.opcode = value.mutation.proccode.substring(0, value.mutation.proccode.indexOf('%') - 1);
+                    } else {
+                        // COMMENT: control_stop block
+                        newBlock.opcode = value.opcode;
+                    }
+                }
+                // eslint-disable-next-line no-console
+                console.log(newBlock);
+                if ((typeof newBlock.opcode) === 'undefined') {
+                    newBlock.opcode = `var ${newBlock.toString()}`;
+                }
+                newBlock.childID = value.next;
+                newBlock.parentID = value.parent;
+                if (newBlock.opcode.endsWith('menu') || newBlock.opcode.endsWith('options')) {
+                    const parentBlock = trees.findNodeByID(value.parent);
+                    if (parentBlock !== null) {
+                        parentBlock.value = value.fields[Object.keys(value.fields)[0]][0].replaceAll('_', '');
+                    }
+                    addBlockToTree = false;
+                    continue;
+                }
+
+                if (value.topLevel) {
+                    newBlock.isRoot = true;
+                } else {
+                    trees.roots = trees.roots.filter(rootNode => rootNode.id !== newBlock.id);
+                    newBlock.isRoot = false;
+                }
+
+                if (allBlocks.some(node => node.id === newBlock.id)) {
+                    trees.updateNode(newBlock);
+                } else {
+                    allBlocks.push(newBlock);
+                    if (addBlockToTree) {
+                        trees.addNode(newBlock);
+                    }
+                }
+            }
+            // eslint-disable-next-line no-console
+            console.log('ALL BLOCKS:');
+            // eslint-disable-next-line no-console
+            console.log(allBlocks);
+        }
+    }
+
+    if (trees !== null) {
+        currentParsedJSONObject = new BlockTrees();
+        currentParsedJSONObject.roots = trees.roots.slice();
+    }
+};
+
 class Blocks extends React.Component {
     constructor (props) {
         super(props);
@@ -241,6 +390,7 @@ class Blocks extends React.Component {
         this.onTargetsUpdate = debounce(this.onTargetsUpdate, 100);
         this.toolboxUpdateQueue = [];
     }
+
     componentDidMount () {
         rootBlocks = [];
         trees = null;
@@ -299,125 +449,9 @@ class Blocks extends React.Component {
     shouldComponentUpdate (nextProps, nextState) {
         const projectJson = this.props.vm.toJSON();
         const obj = JSON.parse(projectJson);
-        for (let i = 0; i < obj.targets.length; i++) {
-            // eslint-disable-next-line no-console
-            console.log(`BLOCKS from ${obj.targets[i].name}`);
-            // eslint-disable-next-line no-console
-            console.log(Object.entries(obj.targets[i].blocks));
-            // eslint-disable-next-line no-console
-            console.log('-----------------------------------------------------------');
-            if (!obj.targets[i].isStage) {
-                allBlocks = [];
-                if (trees === null) {
-                    trees = new BlockTrees();
-                }
-                trees.roots = [];
-                for (const [key, value] of Object.entries(obj.targets[i].blocks)) {
-                    let addBlockToTree = true;
-                    const newBlock = new BlockNode(key, value.opcode);
-                    const noOfInputs = 'inputs' in value ? Object.keys(value.inputs).length : 0;
-                    const noOfFields = 'fields' in value ? Object.keys(value.fields).length : 0;
-                    if (noOfInputs === 0 && noOfFields === 0) {
-                        console.log(`//////////////// NO INPUTS NOR FIELDS ////////////////`);
-                    } else if (noOfInputs === 0) {
-                        console.log(`//////////////// NO INPUTS ////////////////`);
-                        newBlock.value = value.fields[Object.keys(value.fields)[0]][0];
-                        const fields = [];
-                        for (let j = 0; j < noOfFields; j++) {
-                            if (value.fields[Object.keys(value.fields)[j]].constructor === Array) {
-                                fields.push(value.fields[Object.keys(value.fields)[j]][0].replace('_', ''));
-                            } else {
-                                fields.push(null);
-                            }
-                        }
-                        newBlock.value = fields;
-                    } else if (noOfFields === 0) {
-                        console.log(`//////////////// NO FIELDS ////////////////`);
-                        const inputs = [];
-                        for (let j = 0; j < noOfInputs; j++) {
-                            if (value.inputs[Object.keys(value.inputs)[j]][1] !== null && value.inputs[Object.keys(value.inputs)[j]][1].constructor === Array) {
-                                if (Object.keys(value.inputs)[j].toUpperCase() === 'MESSAGE') {
-                                    inputs.push(`"${value.inputs[Object.keys(value.inputs)[j]][1][1].replace('_', '')}"`);
-                                } else {
-                                    inputs.push(value.inputs[Object.keys(value.inputs)[j]][1][1].replace('_', ''));
-                                }
-                            } else if (inputs.length === 0 && (typeof value.inputs[Object.keys(value.inputs)[j]][1]) !== 'string') {
-                                inputs.push(null);
-                            } else {
-                                if (!Object.keys(value.inputs)[j].toUpperCase().startsWith('SUBSTACK')) {
-                                    newBlock.conditionIDs.push(value.inputs[Object.keys(value.inputs)[j]][1]);
-                                    inputs.push(null);
-                                    addBlockToTree = false;
-                                }
-                                if (Object.keys(value.inputs)[j].toUpperCase() === 'SUBSTACK2') {
-                                    newBlock.elseConditionPart = value.inputs[Object.keys(value.inputs)[j]][1];
-                                }
-                            }
-                        }
-                        newBlock.value = inputs;
-                    } else {
-                        console.log(`//////////////// INPUTS AND FIELDS ////////////////`);
-                        const inputFields = [];
-                        for (let j = 0; j < noOfInputs; j++) {
-                            if (value.inputs[Object.keys(value.inputs)[j]][1].constructor === Array) {
-                                inputFields.push(value.inputs[Object.keys(value.inputs)[j]][1][1]);
-                            } else {
-                                inputFields.push(null);
-                            }
-                        }
-                        for (let j = 0; j < noOfFields; j++) {
-                            if (value.fields[Object.keys(value.fields)[j]].constructor === Array) {
-                                inputFields.push(value.fields[Object.keys(value.fields)[j]][0]);
-                            } else {
-                                inputFields.push(null);
-                            }
-                        }
-                        newBlock.value = inputFields;
-                    }
-
-                    if ('mutation' in value) {
-                        if ('proccode' in value.mutation) {
-                            newBlock.opcode = value.mutation.proccode.substring(0, value.mutation.proccode.indexOf('%') - 1);
-                        } else {
-                            // control_stop block
-                            newBlock.opcode = value.opcode;
-                        }
-                    }
-                    console.log(newBlock);
-                    if ((typeof newBlock.opcode) === 'undefined') {
-                        newBlock.opcode = `var ${newBlock.toString()}`;
-                    }
-                    newBlock.childID = value.next;
-                    newBlock.parentID = value.parent;
-                    if (newBlock.opcode.endsWith('menu') || newBlock.opcode.endsWith('options')) {
-                        const parentBlock = trees.findNodeByID(value.parent);
-                        if (parentBlock !== null) {
-                            parentBlock.value = value.fields[Object.keys(value.fields)[0]][0].replaceAll('_', '');
-                        }
-                        addBlockToTree = false;
-                        continue;
-                    }
-
-                    if (value.topLevel) {
-                        newBlock.isRoot = true;
-                    } else {
-                        trees.roots = trees.roots.filter(rootNode => rootNode.id !== newBlock.id);
-                        newBlock.isRoot = false;
-                    }
-
-                    if (allBlocks.some(node => node.id === newBlock.id)) {
-                        trees.updateNode(newBlock);
-                    } else {
-                        allBlocks.push(newBlock);
-                        if (addBlockToTree) {
-                            trees.addNode(newBlock);
-                        }
-                    }
-                }
-                console.log('ALL BLOCKS:');
-                console.log(allBlocks);
-            }
-        }
+        currentJSONObject = obj;
+        // currentJSONObject = JSON.parse(projectJson);
+        parseJsonObject(obj);
         return (
             this.state.prompt !== nextState.prompt ||
             this.props.isVisible !== nextProps.isVisible ||
@@ -521,7 +555,7 @@ class Blocks extends React.Component {
     }
 
     withToolboxUpdates (fn) {
-        // update blocks
+        // COMMENT: update blocks
         // if there is a queued toolbox update, we need to wait
         if (this.toolboxUpdateTimeout) {
             this.toolboxUpdateQueue.push(fn);
@@ -569,7 +603,7 @@ class Blocks extends React.Component {
     }
 
     updateToolboxBlockValue (id, value) {
-        // update blocks
+        // COMMENT: update blocks
         this.withToolboxUpdates(() => {
             const block = this.workspace
                 .getFlyout()
@@ -610,8 +644,11 @@ class Blocks extends React.Component {
     }
 
     onBlockUpdate (data) {
+        console.log('update');
         // // // TODO want to eventually move zip creation out of here, and perhaps into scratch-storage
+
         this.onWorkspaceMetricsChange();
+        // parseJsonObject(null);
     }
 
 
@@ -624,19 +661,25 @@ class Blocks extends React.Component {
         this.onBlockUpdate('');
         this.workspace.glowStack(data.id, true);
     }
+
     onScriptGlowOff (data) {
         console.log('onScriptGlowOff');
+        this.onBlockUpdate('');
         this.workspace.glowStack(data.id, false);
     }
+
     onBlockGlowOn (data) {
         this.workspace.glowBlock(data.id, true);
     }
+
     onBlockGlowOff (data) {
         this.workspace.glowBlock(data.id, false);
     }
+
     onVisualReport (data) {
         this.workspace.reportValue(data.id, data.value);
     }
+
     getToolboxXML () {
         // Use try/catch because this requires digging pretty deep into the VM
         // Code inside intentionally ignores several error situations (no stage, etc.)

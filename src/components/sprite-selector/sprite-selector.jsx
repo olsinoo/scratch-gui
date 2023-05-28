@@ -8,7 +8,7 @@ import SpriteList from './sprite-list.jsx';
 import ActionMenu from '../action-menu/action-menu.jsx';
 import {STAGE_DISPLAY_SIZES} from '../../lib/layout-constants';
 import {isRtl} from 'scratch-l10n';
-import {trees} from '../../containers/blocks.jsx';
+import {trees, parseJsonObject} from '../../containers/blocks.jsx';
 import styles from './sprite-selector.css';
 
 import fileUploadIcon from '../action-menu/icon--file-upload.svg';
@@ -17,6 +17,8 @@ import spriteIcon from '../action-menu/icon--sprite.svg';
 import surpriseIcon from '../action-menu/icon--surprise.svg';
 import searchIcon from '../action-menu/icon--search.svg';
 import {returns} from 'web-audio-test-api/lib/decorators/methods';
+import {output} from 'scratch-audio/webpack.config';
+import * as events from 'events';
 
 const messages = defineMessages({
     addSpriteFromLibrary: {
@@ -41,17 +43,22 @@ const messages = defineMessages({
     }
 });
 
-let imports = new Set(['Beetle']);
+// const imports = new Set([<div key={`importBeetle`}>{`import Beetle`}</div>]);
 
 // const translatedCommandsList = ['forward(', 'turnRight(', 'turnLeft(', 'goTo(', 'goToXY(', 'glideTo(',
 // 'glideToXYinSeconds(', 'beetle.', 'changeYby(', 'changeXby(', 'print(', ''];
 // 'ifOnEdgeBounce(', 'setRotationStyle(', 'changeSizeBy(', 'show(', 'hide(', 'def ', 'broadcast(', 'broadcastAndWait(',
 //     'for ', 'while True', 'if (', 'else:', 'waitUntil(', 'createCloneOf(', 'deleteClone', 'isTouching',
 //     'distance(', 'askAndWait(', 'answer', 'isKeyPressed(', 'isMouseDown(', ''...
+
+const eventsMap = new Map();
+let importRandom = false;
+let importMath = false;
+
 const translateCode = (inputStatement, isValue = false, values = []) => {
     if (inputStatement === null) return [`${inputStatement}${isValue ? '' : '('}`, `${isValue ? '' : ')'}`];
     switch (inputStatement) {
-    // motion
+    // COMMENT: motion
     case 'movesteps': return ['forward(', ')'];
     case 'turnright': return ['turnRight(', ')'];
     case 'turnleft': return ['turnLeft(', ')'];
@@ -70,37 +77,97 @@ const translateCode = (inputStatement, isValue = false, values = []) => {
     case 'xposition': return ['beetle.x', '', true];
     case 'yposition': return ['beetle.y', '', true];
     case 'direction': return ['beetle.heading', '', true];
-        // looks
+        // COMMENT: looks
     case 'say': return ['print(', ')'];
     case 'changesizeby': return ['changeSizeBy(', ')'];
     case 'setsizeto': return ['beetle.size = ', ''];
     case 'show': return ['show(', ')'];
     case 'hide': return ['hide(', ')'];
     case 'size': return ['beetle.size', '', true];
-        // sounds
-        // events
-    case 'whenflagclicked': return ['def whenFlagClicked(', '):'];
-    case 'whenkeypressed': return ['def whenKeyPressed("', '"):'];
-    case 'whenthisspriteclicked': return ['def whenSpriteClicked(', '):'];
-    case 'whenbackdropswitchesto': return ['def whenBackdropSwitchesTo("', '"):'];
-    case 'whengreaterthan': return [`def when${values[1].charAt(0).toUpperCase() + values[1].slice(1).toLowerCase()}GreaterThan(${values[0]}):`, '', true];
-    case 'whenbroadcastreceived': return ['def receivedMessage("', '"):'];
+        // COMMENT: sounds
+        // COMMENT: events
+    case 'whenflagclicked': {
+        if (eventsMap.has('whenflagclicked')) {
+            eventsMap.set('whenflagclicked', eventsMap.get('whenflagclicked') + 1);
+            return [`def whenFlagClicked_${eventsMap.get('whenflagclicked')}(`, '):'];
+        }
+        eventsMap.set('whenflagclicked', 0);
+        console.log('eventWhenMap added flag click');
+        console.log('eventWhenMap:', eventsMap);
+        return ['def whenFlagClicked(', '):'];
+    }
+    case 'whenkeypressed': {
+        if (eventsMap.has('whenkeypressed')) {
+            eventsMap.set('whenkeypressed', eventsMap.get('whenkeypressed') + 1);
+            return [`def whenKeyPressed_${eventsMap.get('whenkeypressed')}(key):`, '', true];
+        }
+        eventsMap.set('whenkeypressed', 0);
+        console.log('eventWhenMap added key press');
+        return ['def whenKeyPressed(key):', '', true];
+    }
+    case 'whenthisspriteclicked': {
+        if (eventsMap.has('whenthisspriteclicked')) {
+            eventsMap.set('whenthisspriteclicked', eventsMap.get('whenthisspriteclicked') + 1);
+            return [`def whenSpriteClicked_${eventsMap.get('whenthisspriteclicked')}(`, '):'];
+        }
+        eventsMap.set('whenthisspriteclicked', 0);
+        return ['def whenSpriteClicked(', '):'];
+    }
+    case 'whenbackdropswitchesto': {
+        if (eventsMap.has('whenbackdropswitchesto')) {
+            eventsMap.set('whenbackdropswitchesto', eventsMap.get('whenbackdropswitchesto') + 1);
+            return [`def whenBackdropSwitchesTo_${eventsMap.get('whenbackdropswitchesto')}(backdrop):`, '', true];
+            // return [`def whenBackdropSwitchesTo_${eventsMap.get('whenbackdropswitchesto')}(`, '):'];
+        }
+        eventsMap.set('whenbackdropswitchesto', 0);
+        return ['def whenBackdropSwitchesTo(backdrop):', '', true];
+        // return ['def whenBackdropSwitchesTo("', '"):'];
+    }
+    case 'whengreaterthan': {
+        if (eventsMap.has('whengreaterthan')) {
+            eventsMap.set('whengreaterthan', eventsMap.get('whengreaterthan') + 1);
+            // return [`def whenKeyPressed${eventsMap.whengreaterthan++}(`, '):'];
+            return [`def when${values[1].charAt(0).toUpperCase() + values[1].slice(1).toLowerCase()}GreaterThan${values[0]}_${eventsMap.get('whengreaterthan')}:`, '', true];
+        }
+        eventsMap.set('whengreaterthan', 0);
+        return [`def when${values[1].charAt(0).toUpperCase() + values[1].slice(1).toLowerCase()}GreaterThan${values[0]}:`, '', true];
+    }
+    case 'whenbroadcastreceived': {
+        // return ['def receivedMessage("', '"):'];
+        if (eventsMap.has('whenbroadcastreceived')) {
+            eventsMap.set('whenbroadcastreceived', eventsMap.get('whenbroadcastreceived') + 1);
+            return [`def whenReceivedMessage_${eventsMap.get('whenbroadcastreceived')}(message):`, '', true];
+            // return [`def whenReceivedMessage_${eventsMap.get('whenbroadcastreceived')}(`, '):'];
+        }
+        eventsMap.set('whenbroadcastreceived', 0);
+        return ['def whenReceivedMessage(message):', '', true];
+        // return ['def whenReceivedMessage("', '"):'];
+    }
     case 'broadcast': return [`broadcast("${values[0]}")`, '', true];
     case 'broadcastandwait': return [`broadcastAndWait("${values[0]}")`, '', true];
-        // control
-    // wait
+        // COMMENT: control
+        // COMMENT: wait
     case 'repeat': return [`for ${values.toString()} in range(`, '):'];
     case 'forever': return ['while True', ':'];
     case 'if': return ['if (', '):'];
     case 'if_else': return ['if (', '):'];
     case 'else': return ['else:', ''];
     case 'wait_until': return ['waitUntil(', ')'];
-    // repeat_until is a special case
-    // stop all
+        // COMMENT: repeat_until is a special case
+        // COMMENT: stop all
     case 'create_clone_of': return ['createCloneOf(', ')'];
-    case 'start_as_clone': return [`def whenStartedAsClone():`, '', true];
+    case 'start_as_clone': {
+        // return [`def whenStartedAsClone():`, '', true];
+        if (eventsMap.has('start_as_clone')) {
+            eventsMap.set('start_as_clone', eventsMap.get('start_as_clone') + 1);
+            return [`def whenStartedAsClone_${eventsMap.get('start_as_clone')}():`, '', true];
+        }
+        // eventsMap.start_as_clone = 1;
+        eventsMap.set('start_as_clone', 0);
+        return [`def whenStartedAsClone():`, '', true];
+    }
     case 'delete_this_clone': return ['deleteClone()', '', true];
-        // sensing
+        // COMMENT: sensing
     case 'touchingobject': return ['isTouching(beetle, ', ')'];
     case 'touchingcolor': return ['isTouchingColour(beetle, ', ')'];
     case 'coloristouchingcolor': return ['isTouching(', ')'];
@@ -118,13 +185,14 @@ const translateCode = (inputStatement, isValue = false, values = []) => {
     case 'current': return ['current(', ')'];
     case 'dayssince2000': return ['daysSince2000(', ')'];
     case 'username': return ['username', '', true];
-        // operators
+        // COMMENT: operators
     case 'add': return [`${values[0]} + ${values[1]}`, '', true];
     case 'subtract': return [`${values[0]} - ${values[1]}`, '', true];
     case 'multiply': return [`${values[0]} * ${values[1]}`, '', true];
     case 'divide': return [`${values[0]} / ${values[1]}`, '', true];
     case 'random': {
-        imports.add('random');
+        importRandom = true;
+        // imports.add(<div key={`importRandom`}>{`import random`}</div>);
         return ['random.randInt(', ')'];
     }
     case 'gt': return [`${values[0]} > ${values[1]}`, '', true];
@@ -159,6 +227,7 @@ const translateCode = (inputStatement, isValue = false, values = []) => {
             !val1.includes(')')) {
             val1 = `"${val1}"`;
         }
+
         return [`${val1}[${values[0]}]`, '', false];
         // return [`${values[1]}[${values[0]}]`, '', true];
     }
@@ -174,9 +243,12 @@ const translateCode = (inputStatement, isValue = false, values = []) => {
     }
     case 'contains': return [`${values[1]} in ${values[0]}`, '', true];
     case 'mod': return [`${values[0]} % ${values[1]}`, '', true];
-    case 'round': return [`round(${values[0].replaceAll('(', '').replaceAll(')', '')})`, '', true];
+    case 'round': {
+        importMath = true;
+        return [`math.round(${values})`, '', true];
+    }
     case 'mathop': return [`${values[1]}(${values[0]})`, '', true];
-        // variables
+        // COMMENT: variables
     // case 'variable': return ['var(', ')'];
     case 'setvariableto': return [`${values[0]} = ${values[1]}`, '', true];
     case 'changevariableby': return [`${values[1]} ${values[0] > '0' ? '+=' : '-='} ${Math.abs(values[0])}`, '', true];
@@ -195,13 +267,13 @@ const translateCode = (inputStatement, isValue = false, values = []) => {
     case 'showlist': return ['showList(', ')'];
     case 'hidelist': return ['hideList(', ')'];
 
-        // my blocks
+        // COMMENT: my blocks
 
-        // other
+        // COMMENT: other
     case '...': return ['...', '...', true];
     case 'break': return ['break', 'break', true];
     case 'continue': return ['continue', '', true];
-        // default
+        // COMMENT: default
     default: return [`${inputStatement}${isValue ? '' : '('}`, `${isValue ? '' : ')'}`];
     }
 };
@@ -263,7 +335,7 @@ const parseValue = inputValue => {
         if (bracketPos >= 0) {
             const command = inputValue.substring(0, bracketPos);
             const closingBracketPos = findClosingBracketMatchIndex(inputValue, bracketPos);
-            const value = inputValue.substring(bracketPos + 1, closingBracketPos).replaceAll(' ', '');
+            const value = inputValue.substring(bracketPos + 1, closingBracketPos);// .replaceAll(' ', '');
             if (closingBracketPos <= bracketPos) {
                 return translateCode(command);
             }
@@ -332,10 +404,15 @@ const getCodeStringFromBlocks = () => {
     if (trees.roots.length === 0) return <div> </div>;
     trees.updateAllNodes();
     trees.checkRoots();
+    parseJsonObject(null);
     console.log(`roots: ${trees.getRoots()}`);
     if (trees.roots.length === 0) return <div> </div>;
-    const output = [];
-    imports = new Set(['Beetle']);
+    eventsMap.clear();
+    // for (const k in [...eventsMap.keys()]) {
+    //     eventsMap.remove(k);
+    // }
+    // imports.clear();
+    // imports.add(<div key={`importBeetle`}>{`import Beetle`}</div>);
     const outputCode = trees.getRoots().map(root => {
         if ((!root.opcode.startsWith('event') || root.opcode.startsWith('event_broadcast')) &&
             !root.opcode.startsWith('procedure') &&
@@ -396,18 +473,43 @@ const getCodeStringFromBlocks = () => {
                 outputComponents.add(<div
                     key={nnode.id}
                     style={{paddingLeft: `${indent}rem`}}
-                >{(translatedFunctionName.length === 3) ? (translatedFunctionName[0]) : ((translatedFunctionName[0] === '' ?
-                        `${opcodeShort}(${(nnode.value === null) ? '' : nnode.value}` :
-                        `${translatedFunctionName[0]}${(nnode.value === null) ||
+                >{
+                        (translatedFunctionName.length === 3) ? (translatedFunctionName[0]) : ((translatedFunctionName[0] === '' ?
+                            `${opcodeShort}(${(nnode.value === null) ? '' : nnode.value}` :
+                            `${translatedFunctionName[0]}${(nnode.value === null) ||
                         (opcodeShort.startsWith('setvariable')) ||
-                        (opcodeShort === 'repeat_until') ? '' : nnode.value}`) + translatedFunctionName[1])}</div>);
+                        (opcodeShort === 'repeat_until') ? '' : nnode.value}`) + translatedFunctionName[1])
+                    }</div>);
 
-                if ((nnode.opcode.startsWith('event') && !nnode.opcode.startsWith('event_broadcast')) || nnode.opcode.startsWith('control_start_as_clone')) {
-                    nodes.push([nnode.childNode, indent + 1, counter]);
+                // COMMENT: adds child/next block/node to output
+                if ((nnode.opcode.startsWith('event') &&
+                    !nnode.opcode.startsWith('event_broadcast')) ||
+                    nnode.opcode.startsWith('control_start_as_clone')) {
+                    // nodes.push([nnode.childNode, indent + 1, counter]);
+                    switch (opcodeShort) {
+                    case 'whenkeypressed':
+                        nodes.push([nnode.childNode, indent + 2, counter]);
+                        nodes.push([`if (key == "${nnode.value}"):`, indent + 1, counter]);
+                        break;
+                    case 'whenbroadcastreceived':
+                        nodes.push([nnode.childNode, indent + 2, counter]);
+                        nodes.push([`if (message == "${nnode.value}"):`, indent + 1, counter]);
+                        break;
+                    case 'whenbackdropswitchesto':
+                        nodes.push([nnode.childNode, indent + 2, counter]);
+                        nodes.push([`if (backdrop == "${nnode.value}"):`, indent + 1, counter]);
+                        break;
+                    default:
+                        nodes.push([nnode.childNode, indent + 1, counter]);
+                        break;
+                    }
+                    // nodes.push([nnode.childNode, indent + 1, counter]);
                 } else {
                     nodes.push([nnode.childNode, indent, counter]);
                 }
-                // console.log(indent, nnode.body);
+
+                // COMMENT: adds body, if block has any
+                // COMMENT: e.g. repeat, if, ... (any block, that's C-shaped)
                 if (typeof nnode.body !== 'undefined') {
                     if (nnode.body.length > 1) {
                         if (opcodeShort === 'if_else') {
@@ -430,7 +532,6 @@ const getCodeStringFromBlocks = () => {
                         } else {
                             nodes.push([nnode.body[0], indent + 1, (opcodeShort === 'repeat') ? (counter + 1) : counter]);
                         }
-                    } else {
                     }
                 }
             }
@@ -438,11 +539,6 @@ const getCodeStringFromBlocks = () => {
         return outputComponents;
     });
 
-    for (const imp of imports) {
-        output.push(<div key={`import${imp}`}>
-            {`import ${imp}`}
-        </div>);
-    }
     const outputArray = [];
     if (outputCode[0] instanceof Set) {
         outputCode.forEach(itemSet => {
@@ -468,7 +564,17 @@ const getCodeStringFromBlocks = () => {
             }
         });
     }
-    return output.concat(outputArray);
+    const newOutput = [<div key={`importBeetle`}>{`import Beetle`}</div>];
+    console.log('imports:', importRandom, importMath);
+    if (importRandom) {
+        newOutput.push(<div key={`importRandom`}>{`import random`}</div>);
+    }
+    if (importMath) {
+        newOutput.push(<div key={`importMath`}>{`import math`}</div>);
+    }
+
+    eventsMap.clear();
+    return newOutput.concat(outputArray);
 };
 
 const SpriteSelectorComponent = function (props) {
