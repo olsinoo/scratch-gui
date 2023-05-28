@@ -88,21 +88,21 @@ const translateCode = (inputStatement, isValue = false, values = []) => {
         // COMMENT: events
     case 'whenflagclicked': {
         if (eventsMap.has('whenflagclicked')) {
+
             eventsMap.set('whenflagclicked', eventsMap.get('whenflagclicked') + 1);
             return [`def whenFlagClicked_${eventsMap.get('whenflagclicked')}(`, '):'];
         }
         eventsMap.set('whenflagclicked', 0);
-        console.log('eventWhenMap added flag click');
-        console.log('eventWhenMap:', eventsMap);
         return ['def whenFlagClicked(', '):'];
     }
     case 'whenkeypressed': {
         if (eventsMap.has('whenkeypressed')) {
+            console.log('here added next when key');
             eventsMap.set('whenkeypressed', eventsMap.get('whenkeypressed') + 1);
             return [`def whenKeyPressed_${eventsMap.get('whenkeypressed')}(key):`, '', true];
         }
+        console.log('here added when key');
         eventsMap.set('whenkeypressed', 0);
-        console.log('eventWhenMap added key press');
         return ['def whenKeyPressed(key):', '', true];
     }
     case 'whenthisspriteclicked': {
@@ -274,7 +274,13 @@ const translateCode = (inputStatement, isValue = false, values = []) => {
     case 'break': return ['break', 'break', true];
     case 'continue': return ['continue', '', true];
         // COMMENT: default
-    default: return [`${inputStatement}${isValue ? '' : '('}`, `${isValue ? '' : ')'}`];
+    default: {
+        console.log('here hrere: ', inputStatement);
+        if (inputStatement.indexOf(':') > -1) {
+            return [`${inputStatement.substring(0, inputStatement.indexOf(':') + 1)}${isValue ? '' : '('}`, `${isValue ? '' : ')'}`];
+        }
+        return [`${inputStatement}${isValue ? '' : '('}`, `${isValue ? '' : ')'}`];
+    }
     }
 };
 
@@ -489,15 +495,27 @@ const getCodeStringFromBlocks = () => {
                     switch (opcodeShort) {
                     case 'whenkeypressed':
                         nodes.push([nnode.childNode, indent + 2, counter]);
-                        nodes.push([`if (key == "${nnode.value}"):`, indent + 1, counter]);
+                        if (eventsMap.has('whenkeypressed')) {
+                            nodes.push([`if (key == "${nnode.value}"):${eventsMap.get('whenkeypressed') + 1}`, indent + 1, counter]);
+                        } else {
+                            nodes.push([`if (key == "${nnode.value}"):`, indent + 1, counter]);
+                        }
                         break;
                     case 'whenbroadcastreceived':
                         nodes.push([nnode.childNode, indent + 2, counter]);
-                        nodes.push([`if (message == "${nnode.value}"):`, indent + 1, counter]);
+                        if (eventsMap.has('whenbroadcastreceived')) {
+                            nodes.push([`if (message == "${nnode.value}"):${eventsMap.get('whenbroadcastreceived') + 1}`, indent + 1, counter]);
+                        } else {
+                            nodes.push([`if (message == "${nnode.value}"):`, indent + 1, counter]);
+                        }
                         break;
                     case 'whenbackdropswitchesto':
                         nodes.push([nnode.childNode, indent + 2, counter]);
-                        nodes.push([`if (backdrop == "${nnode.value}"):`, indent + 1, counter]);
+                        if (eventsMap.has('whenbackdropswitchesto')) {
+                            nodes.push([`if (backdrop == "${nnode.value}"):${eventsMap.get('whenbackdropswitchesto') + 1}`, indent + 1, counter]);
+                        } else {
+                            nodes.push([`if (backdrop == "${nnode.value}"):`, indent + 1, counter]);
+                        }
                         break;
                     default:
                         nodes.push([nnode.childNode, indent + 1, counter]);
