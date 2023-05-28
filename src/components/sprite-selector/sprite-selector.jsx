@@ -88,7 +88,6 @@ const translateCode = (inputStatement, isValue = false, values = []) => {
         // COMMENT: events
     case 'whenflagclicked': {
         if (eventsMap.has('whenflagclicked')) {
-
             eventsMap.set('whenflagclicked', eventsMap.get('whenflagclicked') + 1);
             return [`def whenFlagClicked_${eventsMap.get('whenflagclicked')}(`, '):'];
         }
@@ -97,11 +96,9 @@ const translateCode = (inputStatement, isValue = false, values = []) => {
     }
     case 'whenkeypressed': {
         if (eventsMap.has('whenkeypressed')) {
-            console.log('here added next when key');
             eventsMap.set('whenkeypressed', eventsMap.get('whenkeypressed') + 1);
             return [`def whenKeyPressed_${eventsMap.get('whenkeypressed')}(key):`, '', true];
         }
-        console.log('here added when key');
         eventsMap.set('whenkeypressed', 0);
         return ['def whenKeyPressed(key):', '', true];
     }
@@ -275,7 +272,6 @@ const translateCode = (inputStatement, isValue = false, values = []) => {
     case 'continue': return ['continue', '', true];
         // COMMENT: default
     default: {
-        console.log('here hrere: ', inputStatement);
         if (inputStatement.indexOf(':') > -1) {
             return [`${inputStatement.substring(0, inputStatement.indexOf(':') + 1)}${isValue ? '' : '('}`, `${isValue ? '' : ')'}`];
         }
